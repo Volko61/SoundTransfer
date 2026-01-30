@@ -51,23 +51,6 @@
         </div>
       </section>
 
-      <section class="card ec-card">
-        <h2>Error Correction</h2>
-        <div class="row">
-          <label class="toggle">
-            <input id="ecToggle" type="checkbox" checked />
-            Enable auto error correction (CRC + ACK/retry)
-          </label>
-          <label class="toggle">
-            <input id="ecReliableMode" type="checkbox" />
-            Reliable mode (wait for ACK)
-          </label>
-        </div>
-        <div id="ecStats" class="ec-stats">EC: 0 sent, 0 acked, 0 retries, 0 dupes, 0 fails</div>
-        <button id="ecClearStats" class="btn-small">Clear Stats</button>
-        <p class="hint">Error correction adds CRC checksums and sequence numbers. Reliable mode waits for acknowledgments and retries on failure.</p>
-      </section>
-
       <section class="card">
         <h2>Send file</h2>
         <div class="row">

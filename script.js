@@ -37,19 +37,6 @@ const MAX_BASE64_CHARS = 240000;
 const IMAGE_STREAM_MAX_DIM = 96;
 const IMAGE_STREAM_CHUNK_BYTES = 6000;
 
-// Error correction constants
-const EC_MAX_RETRIES = 3;
-const EC_ACK_TIMEOUT_MS = 5000;
-const EC_DEDUP_WINDOW_SIZE = 100;
-const EC_AUTO_CORRECT_ENABLED_KEY = "ec_enabled";
-
-// Error correction state
-let ecEnabled = localStorage.getItem(EC_AUTO_CORRECT_ENABLED_KEY) !== "false";
-let ecSequenceNumber = 0;
-let ecPendingAcks = new Map(); // seq -> { envelope, retries, timeout, resolve, reject }
-let ecReceivedSeqs = []; // Ring buffer for deduplication
-let ecStats = { sent: 0, acked: 0, retries: 0, duplicates: 0, failures: 0 };
-
 let isReady = false;
 let transmitter = null;
 let receiverInstance = null;
@@ -87,54 +74,6 @@ function setStatus(text, tone = "info") {
     statusEl.classList.remove("ok", "error");
     if (tone === "ok") statusEl.classList.add("ok");
     if (tone === "error") statusEl.classList.add("error");
-}
-
-// CRC32 lookup table (precomputed)
-const CRC32_TABLE = (() => {
-    const table = new Uint32Array(256);
-    for (let i = 0; i < 256; i++) {
-        let crc = i;
-        for (let j = 0; j < 8; j++) {
-            crc = (crc & 1) ? (0xEDB88320 ^ (crc >>> 1)) : (crc >>> 1);
-        }
-        table[i] = crc >>> 0;
-    }
-    return table;
-})();
-
-function crc32(str) {
-    let crc = 0xFFFFFFFF;
-    for (let i = 0; i < str.length; i++) {
-        const byte = str.charCodeAt(i) & 0xFF;
-        crc = CRC32_TABLE[(crc ^ byte) & 0xFF] ^ (crc >>> 8);
-    }
-    return ((crc ^ 0xFFFFFFFF) >>> 0).toString(16).padStart(8, '0');
-}
-
-function generateMessageId() {
-    return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function isControlMessage(msg) {
-    return msg.type === "ack" || msg.type === "nak" || msg.type === "ec-status";
-}
-
-function addToDedup(seq) {
-    ecReceivedSeqs.push(seq);
-    if (ecReceivedSeqs.length > EC_DEDUP_WINDOW_SIZE) {
-        ecReceivedSeqs.shift();
-    }
-}
-
-function isDuplicate(seq) {
-    return ecReceivedSeqs.includes(seq);
-}
-
-function updateEcStatsDisplay() {
-    const statsEl = document.getElementById("ecStats");
-    if (statsEl) {
-        statsEl.textContent = `EC: ${ecStats.sent} sent, ${ecStats.acked} acked, ${ecStats.retries} retries, ${ecStats.duplicates} dupes, ${ecStats.failures} fails`;
-    }
 }
 
 function setUiReady(ready) {
@@ -322,7 +261,7 @@ function ensureReceiver() {
     });
 }
 
-function sendEnvelopeRaw(envelope) {
+function sendEnvelope(envelope) {
     if (!isReady || !transmitter) return;
     const payload = JSON.stringify(envelope);
     const framed = `${START}${payload}${END}`;
@@ -330,152 +269,17 @@ function sendEnvelopeRaw(envelope) {
     transmitter.transmit(Quiet.str2ab(framed));
 }
 
-function sendEnvelope(envelope, skipEc = false) {
-    if (!isReady || !transmitter) return;
-    
-    // Skip EC for control messages or when disabled
-    if (skipEc || !ecEnabled || isControlMessage(envelope)) {
-        sendEnvelopeRaw(envelope);
-        return;
-    }
-    
-    // Add error correction metadata
-    const ecEnvelope = {
-        ...envelope,
-        _ec: {
-            seq: ++ecSequenceNumber,
-            crc: crc32(JSON.stringify(envelope)),
-            msgId: generateMessageId(),
-            ts: Date.now()
-        }
-    };
-    
-    ecStats.sent++;
-    updateEcStatsDisplay();
-    sendEnvelopeRaw(ecEnvelope);
-}
-
-function sendEnvelopeAsync(envelope, skipEc = false) {
+function sendEnvelopeAsync(envelope) {
     if (!isReady || !transmitter) return Promise.resolve();
     return new Promise((resolve) => {
         pendingSendResolve = resolve;
-        sendEnvelope(envelope, skipEc);
-    });
-}
-
-function sendEnvelopeWithRetry(envelope) {
-    if (!isReady || !transmitter) return Promise.reject(new Error("Not ready"));
-    if (!ecEnabled) {
-        return sendEnvelopeAsync(envelope);
-    }
-    
-    return new Promise((resolve, reject) => {
-        const seq = ++ecSequenceNumber;
-        const ecEnvelope = {
-            ...envelope,
-            _ec: {
-                seq,
-                crc: crc32(JSON.stringify(envelope)),
-                msgId: generateMessageId(),
-                ts: Date.now(),
-                needsAck: true
-            }
-        };
-        
-        const attemptSend = (retryCount = 0) => {
-            ecStats.sent++;
-            updateEcStatsDisplay();
-            
-            const timeoutId = setTimeout(() => {
-                const pending = ecPendingAcks.get(seq);
-                if (!pending) return;
-                
-                if (retryCount < EC_MAX_RETRIES) {
-                    ecStats.retries++;
-                    updateEcStatsDisplay();
-                    setStatus(`Retry ${retryCount + 1}/${EC_MAX_RETRIES} for seq ${seq}`, "info");
-                    attemptSend(retryCount + 1);
-                } else {
-                    ecPendingAcks.delete(seq);
-                    ecStats.failures++;
-                    updateEcStatsDisplay();
-                    setStatus(`Failed after ${EC_MAX_RETRIES} retries`, "error");
-                    reject(new Error(`Message ${seq} failed after ${EC_MAX_RETRIES} retries`));
-                }
-            }, EC_ACK_TIMEOUT_MS);
-            
-            ecPendingAcks.set(seq, {
-                envelope: ecEnvelope,
-                retries: retryCount,
-                timeout: timeoutId,
-                resolve,
-                reject
-            });
-            
-            sendEnvelopeRaw(ecEnvelope);
-        };
-        
-        attemptSend();
+        sendEnvelope(envelope);
     });
 }
 
 function queueEnvelope(envelope) {
     sendQueue = sendQueue.then(() => sendEnvelopeAsync(envelope));
     return sendQueue;
-}
-
-function queueEnvelopeWithRetry(envelope) {
-    sendQueue = sendQueue.then(() => sendEnvelopeWithRetry(envelope));
-    return sendQueue;
-}
-
-function sendAck(seq, msgId) {
-    sendEnvelopeRaw({ type: "ack", seq, msgId, ts: Date.now() });
-}
-
-function sendNak(seq, msgId, reason) {
-    sendEnvelopeRaw({ type: "nak", seq, msgId, reason, ts: Date.now() });
-}
-
-function handleAck(msg) {
-    const pending = ecPendingAcks.get(msg.seq);
-    if (pending) {
-        clearTimeout(pending.timeout);
-        ecPendingAcks.delete(msg.seq);
-        ecStats.acked++;
-        updateEcStatsDisplay();
-        setStatus(`ACK received for seq ${msg.seq}`, "ok");
-        pending.resolve();
-    }
-}
-
-function handleNak(msg) {
-    const pending = ecPendingAcks.get(msg.seq);
-    if (pending) {
-        // Trigger immediate retry on NAK
-        clearTimeout(pending.timeout);
-        if (pending.retries < EC_MAX_RETRIES) {
-            ecStats.retries++;
-            updateEcStatsDisplay();
-            setStatus(`NAK received, retrying seq ${msg.seq}: ${msg.reason}`, "info");
-            
-            const newTimeout = setTimeout(() => {
-                ecPendingAcks.delete(msg.seq);
-                ecStats.failures++;
-                updateEcStatsDisplay();
-                pending.reject(new Error(`Message ${msg.seq} failed: ${msg.reason}`));
-            }, EC_ACK_TIMEOUT_MS);
-            
-            pending.retries++;
-            pending.timeout = newTimeout;
-            sendEnvelopeRaw(pending.envelope);
-        } else {
-            ecPendingAcks.delete(msg.seq);
-            ecStats.failures++;
-            updateEcStatsDisplay();
-            pending.reject(new Error(`Message ${msg.seq} failed after NAK: ${msg.reason}`));
-        }
-    }
 }
 
 function handleIncomingPayload(payload) {
@@ -499,62 +303,6 @@ function handleIncomingPayload(payload) {
 
         try {
             const msg = JSON.parse(jsonStr);
-            
-            // Handle ACK/NAK control messages
-            if (msg.type === "ack") {
-                handleAck(msg);
-                startIdx = rxBuffer.indexOf(START);
-                continue;
-            }
-            if (msg.type === "nak") {
-                handleNak(msg);
-                startIdx = rxBuffer.indexOf(START);
-                continue;
-            }
-            
-            // Process error correction if present
-            if (msg._ec && ecEnabled) {
-                const ec = msg._ec;
-                
-                // Check for duplicate
-                if (isDuplicate(ec.seq)) {
-                    ecStats.duplicates++;
-                    updateEcStatsDisplay();
-                    console.log(`Duplicate message seq ${ec.seq} ignored`);
-                    // Still send ACK for duplicates so sender knows we got it
-                    if (ec.needsAck) {
-                        sendAck(ec.seq, ec.msgId);
-                    }
-                    startIdx = rxBuffer.indexOf(START);
-                    continue;
-                }
-                
-                // Verify CRC
-                const originalEnvelope = { ...msg };
-                delete originalEnvelope._ec;
-                const calculatedCrc = crc32(JSON.stringify(originalEnvelope));
-                
-                if (calculatedCrc !== ec.crc) {
-                    console.warn(`CRC mismatch for seq ${ec.seq}: expected ${ec.crc}, got ${calculatedCrc}`);
-                    if (ec.needsAck) {
-                        sendNak(ec.seq, ec.msgId, "CRC mismatch");
-                    }
-                    setStatus(`CRC error on seq ${ec.seq}, requesting retry`, "error");
-                    startIdx = rxBuffer.indexOf(START);
-                    continue;
-                }
-                
-                // Mark as received for deduplication
-                addToDedup(ec.seq);
-                
-                // Send ACK if requested
-                if (ec.needsAck) {
-                    sendAck(ec.seq, ec.msgId);
-                }
-                
-                // Remove EC metadata before rendering
-                delete msg._ec;
-            }
             
             renderMessage(msg);
             setStatus("Received", "ok");
@@ -1240,15 +988,8 @@ btnSend.addEventListener("click", () => {
     if (!text) return;
     const envelope = { type: "text", text };
     
-    const reliableMode = document.getElementById("ecReliableMode")?.checked;
-    if (reliableMode && ecEnabled) {
-        sendEnvelopeWithRetry(envelope)
-            .then(() => setStatus("Text delivered (ACK received)", "ok"))
-            .catch((err) => setStatus(err.message, "error"));
-    } else {
-        sendEnvelope(envelope);
-        setStatus("Text queued", "ok");
-    }
+    sendEnvelope(envelope);
+    setStatus("Text queued", "ok");
     msgInput.value = "";
 });
 
@@ -1259,8 +1000,6 @@ btnSendFile.addEventListener("click", async () => {
         setStatus("Choose a file first", "error");
         return;
     }
-    
-    const reliableMode = document.getElementById("ecReliableMode")?.checked;
     
     try {
         if (file.type.startsWith("image/") && pixelDrawToggle.checked) {
@@ -1274,15 +1013,8 @@ btnSendFile.addEventListener("click", async () => {
         } else {
             setStatus("Compressing file…");
             const envelope = await prepareFileEnvelope(file);
-            
-            if (reliableMode && ecEnabled) {
-                sendEnvelopeWithRetry(envelope)
-                    .then(() => setStatus("File delivered (ACK received)", "ok"))
-                    .catch((err) => setStatus(err.message, "error"));
-            } else {
-                sendEnvelope(envelope);
-                setStatus("File queued", "ok");
-            }
+            sendEnvelope(envelope);
+            setStatus("File queued", "ok");
         }
     } catch (err) {
         console.error(err);
@@ -1321,42 +1053,6 @@ profileSelect.addEventListener("change", () => {
 vizSelect.addEventListener("change", () => {
     vizMode = vizSelect.value;
     clearCanvas();
-});
-
-// Error Correction UI handlers
-document.addEventListener("DOMContentLoaded", () => {
-    const ecToggle = document.getElementById("ecToggle");
-    const ecReliableMode = document.getElementById("ecReliableMode");
-    const ecClearStats = document.getElementById("ecClearStats");
-    
-    if (ecToggle) {
-        ecToggle.checked = ecEnabled;
-        ecToggle.addEventListener("change", () => {
-            ecEnabled = ecToggle.checked;
-            localStorage.setItem(EC_AUTO_CORRECT_ENABLED_KEY, ecEnabled);
-            setStatus(`Error correction ${ecEnabled ? "enabled" : "disabled"}`, "ok");
-            updateEcStatsDisplay();
-        });
-    }
-    
-    if (ecReliableMode) {
-        ecReliableMode.checked = localStorage.getItem("ec_reliable_mode") === "true";
-        ecReliableMode.addEventListener("change", () => {
-            localStorage.setItem("ec_reliable_mode", ecReliableMode.checked);
-            setStatus(`Reliable mode ${ecReliableMode.checked ? "enabled" : "disabled"}`, "ok");
-        });
-    }
-    
-    if (ecClearStats) {
-        ecClearStats.addEventListener("click", () => {
-            ecStats = { sent: 0, acked: 0, retries: 0, duplicates: 0, failures: 0 };
-            updateEcStatsDisplay();
-            setStatus("Error correction stats cleared", "ok");
-        });
-    }
-    
-    // Initialize stats display
-    updateEcStatsDisplay();
 });
 
 loadProfiles();
