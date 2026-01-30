@@ -138,10 +138,44 @@ button:disabled {
 	font-size: 13px;
 }
 
+.viz-wrapper {
+	margin-top: 14px;
+}
+
 .file-info {
 	margin-top: 8px;
 	font-size: 13px;
 	color: var(--muted);
+}
+
+.toggle {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-top: 10px;
+	font-size: 13px;
+	color: var(--muted);
+}
+
+.toggle input {
+	width: 16px;
+	height: 16px;
+}
+
+.progress {
+	height: 8px;
+	border-radius: 999px;
+	background: #0f1421;
+	border: 1px solid var(--border);
+	margin-top: 12px;
+	overflow: hidden;
+}
+
+.progress-bar {
+	height: 100%;
+	width: 0%;
+	background: linear-gradient(90deg, var(--accent), var(--accent-2));
+	transition: width 0.2s ease;
 }
 
 .received {

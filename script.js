@@ -5,12 +5,20 @@ const msgInput = document.getElementById("msgtosend");
 const fileInput = document.getElementById("fileInput");
 const fileInfo = document.getElementById("fileInfo");
 const profileSelect = document.getElementById("profileSelect");
+const vizSelect = document.getElementById("vizSelect");
 const statusEl = document.getElementById("status");
 const receivedList = document.getElementById("receivedList");
+const waveformCanvas = document.getElementById("waveform");
+const waveformCtx = waveformCanvas.getContext("2d");
+const profileHint = document.getElementById("profileHint");
+const sendProgress = document.getElementById("sendProgress");
+const pixelDrawToggle = document.getElementById("pixelDraw");
 
 const START = "\u0002";
 const END = "\u0003";
 const MAX_BASE64_CHARS = 24000;
+const IMAGE_STREAM_MAX_DIM = 96;
+const IMAGE_STREAM_CHUNK_BYTES = 6000;
 
 let isReady = false;
 let transmitter = null;
@@ -18,6 +26,29 @@ let receiverInstance = null;
 let receiverActive = false;
 let currentProfile = "hello-world-loud";
 let rxBuffer = "";
+let vizMode = "waveform";
+let vizStream = null;
+let vizAudioCtx = null;
+let vizAnalyser = null;
+let vizAnimationId = null;
+let progressTimer = null;
+let profileMeta = {};
+let pendingSendResolve = null;
+let sendQueue = Promise.resolve();
+const imageStreamSessions = new Map();
+
+const PROFILE_DESCRIPTIONS = {
+    "hello-world-loud": "Loud, very audible tone. Best for testing and hearing the signal.",
+    "hello-world": "Audible tone with moderate gain. Good balance of audibility and comfort.",
+    "audible": "Audible tones with modest gain. Use for normal audible demos.",
+    "audible-7k-channel-0": "Higher audible band. Less annoying to humans but more fragile.",
+    "audible-7k-channel-1": "Near ultrasonic edge. Better for humans, worse for microphones.",
+    "ultrasonic": "Near ultrasonic; mostly inaudible. Use if you don't want to hear it.",
+    "ultrasonic-3600": "Ultrasonic OFDM profile; slower and more fragile for some mics.",
+    "cable-64k": "Very fast but fragile; best on good speakers and mics.",
+    "audible-fsk-fast": "Fast audible FSK; can be less robust.",
+    "ultrasonic-fsk-fast": "Fast near ultrasonic; may fail on many devices."
+};
 
 function setStatus(text, tone = "info") {
     statusEl.textContent = text;
@@ -31,7 +62,15 @@ function setUiReady(ready) {
     btnListen.disabled = !ready;
     btnSendFile.disabled = !ready;
     profileSelect.disabled = !ready;
+    vizSelect.disabled = !ready;
     fileInput.disabled = !ready;
+}
+
+function updateProfileHint() {
+    const desc = PROFILE_DESCRIPTIONS[currentProfile] || "Pick a profile based on audibility vs reliability.";
+    const profile = profileMeta[currentProfile];
+    const details = profile ? describeProfileDetailed(profile) : "";
+    profileHint.textContent = `${currentProfile}: ${desc}${details ? ` • ${details}` : ""}`;
 }
 
 async function loadProfiles() {
@@ -39,24 +78,27 @@ async function loadProfiles() {
         const res = await fetch("./quiet-profiles.json");
         const text = await res.text();
         const data = JSON.parse(text);
+        profileMeta = data;
         const keys = Object.keys(data);
         const preferred = [
             "hello-world-loud",
             "hello-world",
             "audible",
             "audible-7k-channel-0",
-            "audible-7k-channel-1"
+            "audible-7k-channel-1",
+            "audible-fsk-fast",
+            "ultrasonic",
+            "ultrasonic-3600",
+            "ultrasonic-fsk-fast",
+            "cable-64k"
         ];
-        const ordered = [
-            ...preferred.filter((k) => keys.includes(k)),
-            ...keys.filter((k) => !preferred.includes(k))
-        ];
+        const ordered = preferred.filter((k) => keys.includes(k));
 
         profileSelect.innerHTML = "";
         ordered.forEach((name) => {
             const opt = document.createElement("option");
             opt.value = name;
-            opt.textContent = name;
+            opt.textContent = formatProfileOption(name);
             profileSelect.appendChild(opt);
         });
 
@@ -64,11 +106,54 @@ async function loadProfiles() {
             currentProfile = ordered[0];
         }
         profileSelect.value = currentProfile;
+        updateProfileHint();
     } catch (err) {
         console.warn("Failed to load profiles:", err);
-        profileSelect.innerHTML = "<option value=\"audible\">audible</option>";
+        profileSelect.innerHTML = "<option value=\"audible\">audible — fast but robust + audible</option>";
         currentProfile = "audible";
+        updateProfileHint();
     }
+}
+
+function formatProfileOption(name) {
+    const profile = profileMeta[name];
+    const hintText = profile ? describeProfile(profile) : "custom profile";
+    return `${name} — ${hintText}`;
+}
+
+function describeProfile(profile) {
+    const frame = Number(profile.frame_length || 0);
+    const sps = Number(profile.interpolation?.samples_per_symbol || 0);
+    const fec = `${profile.inner_fec_scheme || "none"}/${profile.outer_fec_scheme || "none"}`;
+    const freq = Number(profile.modulation?.center_frequency || 0);
+    const gain = Number(profile.modulation?.gain || 0);
+
+    const speedScore = frame * (sps > 0 ? 1 / sps : 1);
+    let speedLabel = "balanced";
+    if (speedScore >= 2000) speedLabel = "absolute fastest";
+    else if (speedScore >= 700) speedLabel = "fastest";
+    else if (speedScore >= 200) speedLabel = "fast";
+    else if (speedScore >= 80) speedLabel = "medium";
+    else speedLabel = "slow";
+
+    const fecHeavy = /rs|v29|v27p|v29p/i.test(fec);
+    const robustLabel = fecHeavy ? "robust" : "unreliable";
+
+    const audibleLabel = freq > 0 ? (freq <= 16000 ? "audible" : "near ultrasonic") : "unknown band";
+    const loudLabel = gain >= 0.2 ? "loud" : gain >= 0.08 ? "audible" : "quiet";
+
+    return `${speedLabel}, ${robustLabel}, ${audibleLabel}, ${loudLabel}`;
+}
+
+function describeProfileDetailed(profile) {
+    const frame = Number(profile.frame_length || 0);
+    const sps = Number(profile.interpolation?.samples_per_symbol || 0);
+    const mod = profile.mod_scheme || "unknown";
+    const fec = `${profile.inner_fec_scheme || "none"}/${profile.outer_fec_scheme || "none"}`;
+    const freq = Number(profile.modulation?.center_frequency || 0);
+    const gain = Number(profile.modulation?.gain || 0);
+    const freqLabel = freq ? `${freq} Hz` : "n/a";
+    return `mod ${mod}, FEC ${fec}, frame ${frame}, sps ${sps || "n/a"}, freq ${freqLabel}, gain ${gain}`;
 }
 
 function initQuiet() {
@@ -112,7 +197,17 @@ function createTransmitter() {
     if (transmitter && transmitter.destroy) {
         transmitter.destroy();
     }
-    transmitter = Quiet.transmitter({ profile: currentProfile });
+    transmitter = Quiet.transmitter({
+        profile: currentProfile,
+        onFinish: () => {
+            if (pendingSendResolve) {
+                pendingSendResolve();
+                pendingSendResolve = null;
+            }
+            setProgress(100);
+            setTimeout(() => setProgress(0), 800);
+        }
+    });
 }
 
 function resetReceiver() {
@@ -133,6 +228,9 @@ function ensureReceiver() {
             if (!receiverActive) return;
             handleIncomingPayload(payload);
         },
+        onCreate: () => {
+            setStatus("Listening…", "ok");
+        },
         onCreateFail: (reason) => {
             console.error("Receiver create failed:", reason);
             setStatus("Mic access failed", "error");
@@ -147,7 +245,21 @@ function sendEnvelope(envelope) {
     if (!isReady || !transmitter) return;
     const payload = JSON.stringify(envelope);
     const framed = `${START}${payload}${END}`;
+    startProgress(framed.length);
     transmitter.transmit(Quiet.str2ab(framed));
+}
+
+function sendEnvelopeAsync(envelope) {
+    if (!isReady || !transmitter) return Promise.resolve();
+    return new Promise((resolve) => {
+        pendingSendResolve = resolve;
+        sendEnvelope(envelope);
+    });
+}
+
+function queueEnvelope(envelope) {
+    sendQueue = sendQueue.then(() => sendEnvelopeAsync(envelope));
+    return sendQueue;
 }
 
 function handleIncomingPayload(payload) {
@@ -172,6 +284,7 @@ function handleIncomingPayload(payload) {
         try {
             const msg = JSON.parse(jsonStr);
             renderMessage(msg);
+            setStatus("Received", "ok");
         } catch (err) {
             console.warn("Failed to parse message:", err);
         }
@@ -181,6 +294,21 @@ function handleIncomingPayload(payload) {
 }
 
 function renderMessage(msg) {
+    if (msg.type === "image-stream-start") {
+        handleImageStreamStart(msg);
+        return;
+    }
+
+    if (msg.type === "image-stream-chunk") {
+        handleImageStreamChunk(msg);
+        return;
+    }
+
+    if (msg.type === "image-stream-end") {
+        handleImageStreamEnd(msg);
+        return;
+    }
+
     if (msg.type === "text") {
         appendMessage("Text", document.createTextNode(msg.text || ""));
         return;
@@ -192,9 +320,17 @@ function renderMessage(msg) {
         const wrapper = document.createElement("div");
 
         if ((msg.mime || "").startsWith("image/")) {
-            const img = document.createElement("img");
-            img.src = url;
-            wrapper.appendChild(img);
+            if (pixelDrawToggle.checked) {
+                const canvas = document.createElement("canvas");
+                canvas.width = 320;
+                canvas.height = 240;
+                wrapper.appendChild(canvas);
+                drawImagePixelByPixel(url, canvas);
+            } else {
+                const img = document.createElement("img");
+                img.src = url;
+                wrapper.appendChild(img);
+            }
         } else if ((msg.mime || "").startsWith("audio/")) {
             const audio = document.createElement("audio");
             audio.controls = true;
@@ -239,6 +375,31 @@ function appendMessage(title, contentNode) {
     receivedList.prepend(item);
 }
 
+function setProgress(value) {
+    const clamped = Math.max(0, Math.min(100, value));
+    sendProgress.style.width = `${clamped}%`;
+}
+
+function startProgress(length) {
+    if (progressTimer) {
+        clearInterval(progressTimer);
+        progressTimer = null;
+    }
+    setProgress(0);
+    const estimated = Math.min(12000, Math.max(1500, length * 2));
+    const start = Date.now();
+    progressTimer = window.setInterval(() => {
+        const elapsed = Date.now() - start;
+        const pct = Math.min(95, (elapsed / estimated) * 95);
+        setProgress(pct);
+        if (pct >= 95) {
+            clearInterval(progressTimer);
+            progressTimer = null;
+        }
+    }, 120);
+}
+
+
 function formatBytes(bytes) {
     if (!Number.isFinite(bytes)) return "0 B";
     const units = ["B", "KB", "MB"];
@@ -275,6 +436,200 @@ function base64ToBlob(base64, mime) {
     return new Blob([bytes], { type: mime });
 }
 
+function base64ToBytes(base64) {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes;
+}
+
+function bytesToBase64(bytes) {
+    const slice = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+    return arrayBufferToBase64(slice);
+}
+
+function handleImageStreamStart(msg) {
+    if (!msg.id || !Number.isFinite(msg.width) || !Number.isFinite(msg.height)) return;
+    const wrapper = document.createElement("div");
+    const canvas = document.createElement("canvas");
+    canvas.width = msg.width;
+    canvas.height = msg.height;
+    wrapper.appendChild(canvas);
+
+    const meta = document.createElement("div");
+    meta.className = "file-info";
+    const sizeText = formatBytes(msg.totalBytes || msg.width * msg.height * 4);
+    meta.textContent = `${msg.name || "image"} • ${msg.width}×${msg.height} • ${sizeText}`;
+    wrapper.appendChild(meta);
+
+    appendMessage("Image", wrapper);
+
+    const ctx = canvas.getContext("2d");
+    const imageData = ctx.createImageData(msg.width, msg.height);
+    imageStreamSessions.set(msg.id, {
+        id: msg.id,
+        width: msg.width,
+        height: msg.height,
+        ctx,
+        imageData,
+        receivedBytes: 0,
+        totalBytes: msg.totalBytes || imageData.data.length,
+        leftover: null
+    });
+}
+
+function handleImageStreamChunk(msg) {
+    const session = imageStreamSessions.get(msg.id);
+    if (!session || typeof msg.data !== "string" || !Number.isFinite(msg.offset)) return;
+
+    const bytes = base64ToBytes(msg.data);
+    const data = session.imageData.data;
+
+    data.set(bytes, msg.offset);
+    session.receivedBytes += bytes.length;
+
+    if (pixelDrawToggle.checked) {
+        drawPixelsIncremental(session, bytes, msg.offset);
+    }
+}
+
+function handleImageStreamEnd(msg) {
+    const session = imageStreamSessions.get(msg.id);
+    if (!session) return;
+
+    if (!pixelDrawToggle.checked) {
+        session.ctx.putImageData(session.imageData, 0, 0);
+    }
+
+    imageStreamSessions.delete(msg.id);
+}
+
+function drawPixelsIncremental(session, bytes, offset) {
+    const ctx = session.ctx;
+    const width = session.width;
+    let i = 0;
+    const alignedLength = bytes.length - (bytes.length % 4);
+    for (; i < alignedLength; i += 4) {
+        const idx = (offset + i) / 4;
+        const x = idx % width;
+        const y = Math.floor(idx / width);
+        ctx.fillStyle = `rgba(${bytes[i]}, ${bytes[i + 1]}, ${bytes[i + 2]}, ${bytes[i + 3] / 255})`;
+        ctx.fillRect(x, y, 1, 1);
+    }
+}
+
+function drawImagePixelByPixel(url, canvas) {
+    const ctx = canvas.getContext("2d");
+    const img = new Image();
+    img.onload = () => {
+        const scale = Math.min(1, canvas.width / img.width, canvas.height / img.height);
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        canvas.width = w;
+        canvas.height = h;
+        ctx.drawImage(img, 0, 0, w, h);
+        const data = ctx.getImageData(0, 0, w, h);
+        ctx.clearRect(0, 0, w, h);
+        let i = 0;
+        const step = 400;
+        const drawChunk = () => {
+            const end = Math.min(data.data.length, i + step * 4);
+            for (; i < end; i += 4) {
+                const idx = i / 4;
+                const x = idx % w;
+                const y = Math.floor(idx / w);
+                ctx.fillStyle = `rgba(${data.data[i]}, ${data.data[i + 1]}, ${data.data[i + 2]}, ${data.data[i + 3] / 255})`;
+                ctx.fillRect(x, y, 1, 1);
+            }
+            if (i < data.data.length) {
+                requestAnimationFrame(drawChunk);
+            }
+        };
+        requestAnimationFrame(drawChunk);
+    };
+    img.src = url;
+}
+
+async function startVisualizer() {
+    if (!waveformCtx) return;
+    stopVisualizer();
+    try {
+        vizStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        vizAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const source = vizAudioCtx.createMediaStreamSource(vizStream);
+        vizAnalyser = vizAudioCtx.createAnalyser();
+        vizAnalyser.fftSize = 2048;
+        source.connect(vizAnalyser);
+        drawVisualizer();
+    } catch (err) {
+        console.error("Visualizer mic error:", err);
+    }
+}
+
+function stopVisualizer() {
+    if (vizAnimationId) {
+        cancelAnimationFrame(vizAnimationId);
+        vizAnimationId = null;
+    }
+    if (vizStream) {
+        vizStream.getTracks().forEach((t) => t.stop());
+        vizStream = null;
+    }
+    if (vizAudioCtx) {
+        vizAudioCtx.close();
+        vizAudioCtx = null;
+    }
+    vizAnalyser = null;
+    clearCanvas();
+}
+
+function clearCanvas() {
+    waveformCtx.fillStyle = "#0f1421";
+    waveformCtx.fillRect(0, 0, waveformCanvas.width, waveformCanvas.height);
+}
+
+function drawVisualizer() {
+    if (!vizAnalyser) return;
+    const width = waveformCanvas.width;
+    const height = waveformCanvas.height;
+
+    if (vizMode === "waveform") {
+        const dataArray = new Uint8Array(vizAnalyser.fftSize);
+        vizAnalyser.getByteTimeDomainData(dataArray);
+        waveformCtx.fillStyle = "#0f1421";
+        waveformCtx.fillRect(0, 0, width, height);
+        waveformCtx.lineWidth = 2;
+        waveformCtx.strokeStyle = "#6aa5ff";
+        waveformCtx.beginPath();
+        const slice = width / dataArray.length;
+        let x = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+            const v = dataArray[i] / 128.0;
+            const y = (v * height) / 2;
+            if (i === 0) waveformCtx.moveTo(x, y);
+            else waveformCtx.lineTo(x, y);
+            x += slice;
+        }
+        waveformCtx.lineTo(width, height / 2);
+        waveformCtx.stroke();
+    } else {
+        const freqData = new Uint8Array(vizAnalyser.frequencyBinCount);
+        vizAnalyser.getByteFrequencyData(freqData);
+        waveformCtx.drawImage(waveformCanvas, -1, 0);
+        for (let y = 0; y < height; y++) {
+            const index = Math.floor((y / height) * freqData.length);
+            const value = freqData[index] / 255;
+            const hue = 220 - value * 220;
+            waveformCtx.fillStyle = `hsl(${hue}, 90%, ${30 + value * 50}%)`;
+            waveformCtx.fillRect(width - 1, height - y, 1, 1);
+        }
+    }
+
+    vizAnimationId = requestAnimationFrame(drawVisualizer);
+}
+
 async function compressImage(file) {
     const img = await loadImage(file);
     const maxDim = 420;
@@ -289,6 +644,56 @@ async function compressImage(file) {
         canvas.toBlob(resolve, "image/jpeg", 0.7)
     );
     return blob || file;
+}
+
+async function prepareImageStreamEnvelopes(file) {
+    const img = await loadImage(file);
+    const scale = Math.min(1, IMAGE_STREAM_MAX_DIM / Math.max(img.width, img.height));
+    const width = Math.max(1, Math.round(img.width * scale));
+    const height = Math.max(1, Math.round(img.height * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(img, 0, 0, width, height);
+    const imageData = ctx.getImageData(0, 0, width, height);
+    const bytes = imageData.data;
+    const id = (window.crypto && typeof crypto.randomUUID === "function")
+        ? crypto.randomUUID()
+        : `img-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+    const envelopes = [];
+    envelopes.push({
+        type: "image-stream-start",
+        id,
+        name: replaceExtension(file.name, "raw"),
+        mime: "image/raw+rgba",
+        width,
+        height,
+        totalBytes: bytes.length,
+        originalName: file.name,
+        originalType: file.type,
+        originalSize: file.size,
+        note: "Pixel stream"
+    });
+
+    for (let offset = 0; offset < bytes.length; offset += IMAGE_STREAM_CHUNK_BYTES) {
+        const chunk = bytes.subarray(offset, offset + IMAGE_STREAM_CHUNK_BYTES);
+        const data = bytesToBase64(chunk);
+        envelopes.push({
+            type: "image-stream-chunk",
+            id,
+            offset,
+            data
+        });
+    }
+
+    envelopes.push({
+        type: "image-stream-end",
+        id
+    });
+
+    return envelopes;
 }
 
 async function compressAudio(file) {
@@ -455,7 +860,8 @@ btnSend.addEventListener("click", () => {
     if (!isReady || !transmitter) return;
     const text = msgInput.value.trim();
     if (!text) return;
-    sendEnvelope({ type: "text", text });
+    const envelope = { type: "text", text };
+    sendEnvelope(envelope);
     msgInput.value = "";
     setStatus("Text queued", "ok");
 });
@@ -468,10 +874,19 @@ btnSendFile.addEventListener("click", async () => {
         return;
     }
     try {
-        setStatus("Compressing file…");
-        const envelope = await prepareFileEnvelope(file);
-        sendEnvelope(envelope);
-        setStatus("File queued", "ok");
+        if (file.type.startsWith("image/") && pixelDrawToggle.checked) {
+            setStatus("Preparing pixel stream…");
+            const envelopes = await prepareImageStreamEnvelopes(file);
+            for (const envelope of envelopes) {
+                await queueEnvelope(envelope);
+            }
+            setStatus("Pixel stream queued", "ok");
+        } else {
+            setStatus("Compressing file…");
+            const envelope = await prepareFileEnvelope(file);
+            sendEnvelope(envelope);
+            setStatus("File queued", "ok");
+        }
     } catch (err) {
         console.error(err);
         setStatus(err.message || "File failed", "error");
@@ -484,11 +899,12 @@ btnListen.addEventListener("click", () => {
         ensureReceiver();
         receiverActive = true;
         btnListen.textContent = "Stop Listening";
-        setStatus("Listening…", "ok");
+        startVisualizer();
         return;
     }
 
     resetReceiver();
+    stopVisualizer();
     setStatus("Listening stopped", "info");
 });
 
@@ -501,8 +917,15 @@ profileSelect.addEventListener("change", () => {
         receiverActive = true;
         btnListen.textContent = "Stop Listening";
     }
+    updateProfileHint();
     setStatus(`Profile set to ${currentProfile}`, "ok");
 });
 
+vizSelect.addEventListener("change", () => {
+    vizMode = vizSelect.value;
+    clearCanvas();
+});
+
 loadProfiles();
+updateProfileHint();
 waitForQuiet();
