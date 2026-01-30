@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="style.css" />
+
+    <script type="text/javascript" src="./quiet.js"></script>
+    <script type="text/javascript" src="script.js" defer></script>
+    <script async type="text/javascript" src="./quiet-emscripten.js"></script>
+    <title>SoundTransfer</title>
+  </head>
+  <body>
+    <div class="app">
+      <header class="app-header">
+        <div>
+          <h1>SoundTransfer</h1>
+          <p>Send text or small files over sound.</p>
+        </div>
+        <div id="status" class="status">Loading…</div>
+      </header>
+
+      <section class="card">
+        <div class="row">
+          <label for="profileSelect">Profile</label>
+          <select id="profileSelect"></select>
+          <button id="listen">Listen</button>
+        </div>
+        <p class="hint">Use an audible profile to hear the tones. Allow microphone access to receive.</p>
+      </section>
+
+      <section class="card">
+        <h2>Send text</h2>
+        <div class="row">
+          <input id="msgtosend" type="text" placeholder="Type a message" />
+          <button id="send">Send</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Send file</h2>
+        <div class="row">
+          <input id="fileInput" type="file" />
+          <button id="sendFile">Send file</button>
+        </div>
+        <div id="fileInfo" class="file-info"></div>
+        <p class="hint">Images and video are scaled and compressed. Keep files tiny for reliability.</p>
+      </section>
+
+      <section class="card">
+        <h2>Received</h2>
+        <div id="receivedList" class="received"></div>
+      </section>
+
+      <canvas id="waveform" width="800" height="200" aria-hidden="true"></canvas>
+    </div>
+  </body>
+</html>
