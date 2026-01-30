@@ -68,6 +68,8 @@ let connectionTimer = null;
 let txCount = 0;
 let rxCount = 0;
 let lastReceivedTimestamp = 0;
+let joinInterval = null;
+let joinInterval = null;
 
 // Input state
 let keysPressed = {
@@ -411,19 +413,26 @@ function hostGame() {
 }
 
 function joinGame() {
+    // Prevent multiple clicks
+    if (role === 'guest') return;
+    
     role = 'guest';
     roleIndicator.style.display = 'block';
     roleIndicator.className = 'role-indicator guest';
     roleText.textContent = '🎮 GUEST - Player 2 (Right Paddle)';
     
     btnJoin.classList.add('active');
+    btnJoin.disabled = true;
     btnHost.disabled = true;
     
     setStatus('Joining... Looking for host', 'warning');
     setSyncStatus('syncing');
     
+    // Send first join request immediately
+    sendPacket({ type: 'join', ts: Date.now() });
+    
     // Send join request periodically until acknowledged
-    let joinInterval = setInterval(() => {
+    joinInterval = setInterval(() => {
         if (gameState.gameStarted) {
             clearInterval(joinInterval);
             joinInterval = null;
@@ -742,6 +751,7 @@ waitForQuiet();
 window.addEventListener('beforeunload', () => {
     if (syncTimer) clearInterval(syncTimer);
     if (inputTimer) clearInterval(inputTimer);
+    if (joinInterval) clearInterval(joinInterval);
     if (connectionTimer) clearTimeout(connectionTimer);
     if (transmitter && transmitter.destroy) transmitter.destroy();
     if (receiver && receiver.destroy) receiver.destroy();
