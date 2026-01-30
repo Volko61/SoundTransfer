@@ -15,6 +15,9 @@ const sendProgress = document.getElementById("sendProgress");
 const progressInfo = document.getElementById("progressInfo");
 const pixelDrawToggle = document.getElementById("pixelDraw");
 
+vizSelect.value = "spectrogram"
+
+
 // Approximate bytes per second for each profile (empirically measured)
 const PROFILE_BPS = {
     "hello-world-loud": 50,
@@ -126,6 +129,7 @@ async function loadProfiles() {
         if (!ordered.includes(currentProfile)) {
             currentProfile = ordered[0];
         }
+        currentProfile = "ultra-fast"
         profileSelect.value = currentProfile;
         updateProfileHint();
     } catch (err) {
