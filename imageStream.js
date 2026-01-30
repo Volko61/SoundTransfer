@@ -63,19 +63,22 @@ export function handleImageStreamEnd(msg) {
 function drawPixelImmediate(session, bytes, offset) {
     const ctx = session.ctx;
     const width = session.width;
+    const imageData = session.imageData;
 
-    // Each chunk should be exactly 4 bytes (one RGBA pixel) when pixel draw is enabled
-    // Draw immediately upon receipt
+    // Update the imageData buffer and draw each pixel to canvas
     for (let i = 0; i < bytes.length; i += 4) {
         const pixelIdx = (offset + i) / 4;
         const x = pixelIdx % width;
         const y = Math.floor(pixelIdx / width);
-        const r = bytes[i];
-        const g = bytes[i + 1];
-        const b = bytes[i + 2];
-        const a = bytes[i + 3];
-        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${a / 255})`;
-        ctx.fillRect(x, y, 1, 1);
+        
+        // Use putImageData for a single pixel to avoid alpha compositing issues
+        // Create a 1x1 ImageData with the pixel color
+        const pixelData = ctx.createImageData(1, 1);
+        pixelData.data[0] = bytes[i];     // R
+        pixelData.data[1] = bytes[i + 1]; // G
+        pixelData.data[2] = bytes[i + 2]; // B
+        pixelData.data[3] = bytes[i + 3]; // A
+        ctx.putImageData(pixelData, x, y);
     }
 }
 
@@ -99,8 +102,13 @@ export function drawImagePixelByPixel(url, canvas) {
                 const idx = i / 4;
                 const x = idx % w;
                 const y = Math.floor(idx / w);
-                ctx.fillStyle = `rgba(${data.data[i]}, ${data.data[i + 1]}, ${data.data[i + 2]}, ${data.data[i + 3] / 255})`;
-                ctx.fillRect(x, y, 1, 1);
+                // Use putImageData for single pixel to avoid alpha compositing issues
+                const pixelData = ctx.createImageData(1, 1);
+                pixelData.data[0] = data.data[i];
+                pixelData.data[1] = data.data[i + 1];
+                pixelData.data[2] = data.data[i + 2];
+                pixelData.data[3] = data.data[i + 3];
+                ctx.putImageData(pixelData, x, y);
             }
             if (i < data.data.length) {
                 requestAnimationFrame(drawChunk);
