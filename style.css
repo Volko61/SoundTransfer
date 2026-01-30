@@ -162,12 +162,15 @@ button:disabled {
 	height: 16px;
 }
 
+.progress-container {
+	margin-top: 12px;
+}
+
 .progress {
 	height: 8px;
 	border-radius: 999px;
 	background: #0f1421;
 	border: 1px solid var(--border);
-	margin-top: 12px;
 	overflow: hidden;
 }
 
@@ -175,7 +178,30 @@ button:disabled {
 	height: 100%;
 	width: 0%;
 	background: linear-gradient(90deg, var(--accent), var(--accent-2));
-	transition: width 0.2s ease;
+	transition: width 0.15s ease;
+}
+
+.progress-info {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-top: 6px;
+	font-size: 12px;
+	color: var(--muted);
+	min-height: 18px;
+}
+
+.progress-info:empty {
+	display: none;
+}
+
+.progress-info .time-left {
+	font-weight: 600;
+	color: var(--accent);
+}
+
+.progress-info .data-info {
+	color: var(--muted);
 }
 
 .received {

@@ -12,11 +12,28 @@ const waveformCanvas = document.getElementById("waveform");
 const waveformCtx = waveformCanvas.getContext("2d");
 const profileHint = document.getElementById("profileHint");
 const sendProgress = document.getElementById("sendProgress");
+const progressInfo = document.getElementById("progressInfo");
 const pixelDrawToggle = document.getElementById("pixelDraw");
+
+// Approximate bytes per second for each profile (empirically measured)
+const PROFILE_BPS = {
+    "hello-world-loud": 50,
+    "hello-world": 50,
+    "audible": 100,
+    "audible-7k-channel-0": 80,
+    "audible-7k-channel-1": 80,
+    "audible-fsk-fast": 200,
+    "ultrasonic": 60,
+    "ultrasonic-3600": 150,
+    "ultrasonic-fsk-fast": 180,
+    "cable-64k": 6000,
+    "reliable": 200,
+    "ultra-fast": 400
+};
 
 const START = "\u0002";
 const END = "\u0003";
-const MAX_BASE64_CHARS = 24000;
+const MAX_BASE64_CHARS = 240000;
 const IMAGE_STREAM_MAX_DIM = 96;
 const IMAGE_STREAM_CHUNK_BYTES = 6000;
 
@@ -47,7 +64,9 @@ const PROFILE_DESCRIPTIONS = {
     "ultrasonic-3600": "Ultrasonic OFDM profile; slower and more fragile for some mics.",
     "cable-64k": "Very fast but fragile; best on good speakers and mics.",
     "audible-fsk-fast": "Fast audible FSK; can be less robust.",
-    "ultrasonic-fsk-fast": "Fast near ultrasonic; may fail on many devices."
+    "ultrasonic-fsk-fast": "Fast near ultrasonic; may fail on many devices.",
+    "reliable": "Slower OFDM with QAM16 + strong FEC. More robust in noisy environments.",
+    "ultra-fast": "Fast OFDM with QAM64. Good speed over speakers/mic. Louder signal."
 };
 
 function setStatus(text, tone = "info") {
@@ -90,7 +109,9 @@ async function loadProfiles() {
             "ultrasonic",
             "ultrasonic-3600",
             "ultrasonic-fsk-fast",
-            "cable-64k"
+            "cable-64k",
+            "reliable",
+            "ultra-fast"
         ];
         const ordered = preferred.filter((k) => keys.includes(k));
 
@@ -204,8 +225,7 @@ function createTransmitter() {
                 pendingSendResolve();
                 pendingSendResolve = null;
             }
-            setProgress(100);
-            setTimeout(() => setProgress(0), 800);
+            finishProgress();
         }
     });
 }
@@ -375,28 +395,124 @@ function appendMessage(title, contentNode) {
     receivedList.prepend(item);
 }
 
+let progressState = null;
+
 function setProgress(value) {
     const clamped = Math.max(0, Math.min(100, value));
     sendProgress.style.width = `${clamped}%`;
 }
 
-function startProgress(length) {
+function clearProgress() {
     if (progressTimer) {
         clearInterval(progressTimer);
         progressTimer = null;
     }
+    progressState = null;
     setProgress(0);
-    const estimated = Math.min(12000, Math.max(1500, length * 2));
-    const start = Date.now();
+    progressInfo.innerHTML = "";
+}
+
+function formatTime(ms) {
+    if (!Number.isFinite(ms) || ms < 0) return "--";
+    const totalSec = Math.ceil(ms / 1000);
+    if (totalSec < 60) return `${totalSec}s`;
+    const min = Math.floor(totalSec / 60);
+    const sec = totalSec % 60;
+    return `${min}m ${sec.toString().padStart(2, "0")}s`;
+}
+
+function getProfileBps(profile) {
+    // Get from our estimates, or calculate from profile metadata
+    if (PROFILE_BPS[profile]) return PROFILE_BPS[profile];
+    const meta = profileMeta[profile];
+    if (meta) {
+        const frame = Number(meta.frame_length || 64);
+        const sps = Number(meta.interpolation?.samples_per_symbol || 10);
+        // Rough estimate: higher frame, lower sps = faster
+        return Math.max(20, Math.min(500, (frame / sps) * 5));
+    }
+    return 80; // Default fallback
+}
+
+function startProgress(length) {
+    clearProgress();
+    
+    const bps = getProfileBps(currentProfile);
+    const estimatedMs = (length / bps) * 1000;
+    const startTime = Date.now();
+    
+    progressState = {
+        length,
+        bps,
+        estimatedMs,
+        startTime,
+        lastUpdate: startTime
+    };
+    
+    updateProgressDisplay();
+    
     progressTimer = window.setInterval(() => {
-        const elapsed = Date.now() - start;
-        const pct = Math.min(95, (elapsed / estimated) * 95);
-        setProgress(pct);
-        if (pct >= 95) {
+        if (!progressState) return;
+        
+        const now = Date.now();
+        const elapsed = now - progressState.startTime;
+        
+        // Use eased progress that approaches but never quite reaches 100%
+        // until onFinish is called
+        const rawPct = (elapsed / progressState.estimatedMs) * 100;
+        const easedPct = Math.min(95, rawPct * (1 - Math.exp(-rawPct / 50)));
+        
+        setProgress(easedPct);
+        updateProgressDisplay();
+        
+        // If we've exceeded estimate by 3x, something's likely wrong
+        if (elapsed > progressState.estimatedMs * 3) {
             clearInterval(progressTimer);
             progressTimer = null;
         }
-    }, 120);
+    }, 100);
+}
+
+function updateProgressDisplay() {
+    if (!progressState) {
+        progressInfo.innerHTML = "";
+        return;
+    }
+    
+    const elapsed = Date.now() - progressState.startTime;
+    const remaining = Math.max(0, progressState.estimatedMs - elapsed);
+    const dataSize = formatBytes(progressState.length);
+    
+    const elapsedStr = formatTime(elapsed);
+    const remainingStr = remaining > 0 ? formatTime(remaining) : "finishing...";
+    
+    progressInfo.innerHTML = `
+        <span class="data-info">${dataSize} @ ~${progressState.bps} B/s</span>
+        <span class="time-left">${elapsedStr} / ~${formatTime(progressState.estimatedMs)} (${remainingStr} left)</span>
+    `;
+}
+
+function finishProgress() {
+    if (progressTimer) {
+        clearInterval(progressTimer);
+        progressTimer = null;
+    }
+    setProgress(100);
+    
+    if (progressState) {
+        const elapsed = Date.now() - progressState.startTime;
+        const actualBps = Math.round(progressState.length / (elapsed / 1000));
+        progressInfo.innerHTML = `
+            <span class="data-info">Sent ${formatBytes(progressState.length)}</span>
+            <span class="time-left">Completed in ${formatTime(elapsed)} (${actualBps} B/s)</span>
+        `;
+        progressState = null;
+    }
+    
+    setTimeout(() => {
+        setProgress(0);
+        progressInfo.innerHTML = "";
+    }, 3000);
 }
 
 
@@ -501,23 +617,77 @@ function handleImageStreamEnd(msg) {
 
     if (!pixelDrawToggle.checked) {
         session.ctx.putImageData(session.imageData, 0, 0);
+        imageStreamSessions.delete(msg.id);
+    } else {
+        // Wait for pixel animation to complete before cleaning up
+        const waitForAnimation = () => {
+            if (session.pixelQueue && session.pixelQueue.length > 0) {
+                requestAnimationFrame(waitForAnimation);
+            } else {
+                imageStreamSessions.delete(msg.id);
+            }
+        };
+        waitForAnimation();
     }
-
-    imageStreamSessions.delete(msg.id);
 }
 
 function drawPixelsIncremental(session, bytes, offset) {
     const ctx = session.ctx;
     const width = session.width;
-    let i = 0;
     const alignedLength = bytes.length - (bytes.length % 4);
-    for (; i < alignedLength; i += 4) {
+
+    // Queue pixels for animated drawing
+    if (!session.pixelQueue) {
+        session.pixelQueue = [];
+        session.isDrawing = false;
+    }
+
+    // Add all pixels from this chunk to the queue
+    for (let i = 0; i < alignedLength; i += 4) {
         const idx = (offset + i) / 4;
         const x = idx % width;
         const y = Math.floor(idx / width);
-        ctx.fillStyle = `rgba(${bytes[i]}, ${bytes[i + 1]}, ${bytes[i + 2]}, ${bytes[i + 3] / 255})`;
-        ctx.fillRect(x, y, 1, 1);
+        session.pixelQueue.push({
+            x,
+            y,
+            r: bytes[i],
+            g: bytes[i + 1],
+            b: bytes[i + 2],
+            a: bytes[i + 3]
+        });
     }
+
+    // Start the animation loop if not already running
+    if (!session.isDrawing) {
+        session.isDrawing = true;
+        animatePixels(session);
+    }
+}
+
+function animatePixels(session) {
+    const ctx = session.ctx;
+    const pixelsPerFrame = Math.max(1, Math.ceil(session.pixelQueue.length / 60)); // Draw enough to finish in ~1 second per chunk
+
+    const drawFrame = () => {
+        if (session.pixelQueue.length === 0) {
+            session.isDrawing = false;
+            return;
+        }
+
+        // Draw a batch of pixels per frame for smooth animation
+        const batch = Math.min(pixelsPerFrame, session.pixelQueue.length);
+        for (let i = 0; i < batch; i++) {
+            const pixel = session.pixelQueue.shift();
+            if (pixel) {
+                ctx.fillStyle = `rgba(${pixel.r}, ${pixel.g}, ${pixel.b}, ${pixel.a / 255})`;
+                ctx.fillRect(pixel.x, pixel.y, 1, 1);
+            }
+        }
+
+        requestAnimationFrame(drawFrame);
+    };
+
+    requestAnimationFrame(drawFrame);
 }
 
 function drawImagePixelByPixel(url, canvas) {
