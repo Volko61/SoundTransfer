@@ -241,3 +241,39 @@ button:disabled {
 	border-radius: 12px;
 	opacity: 0.5;
 }
+
+/* Error Correction Section */
+.ec-card {
+	background: linear-gradient(135deg, var(--card) 0%, rgba(106, 165, 255, 0.05) 100%);
+}
+
+.ec-stats {
+	margin: 12px 0 10px;
+	padding: 10px 14px;
+	background: #0f1421;
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	font-family: "Consolas", "Monaco", monospace;
+	font-size: 12px;
+	color: var(--accent);
+}
+
+.btn-small {
+	padding: 6px 12px;
+	font-size: 12px;
+	background: rgba(106, 165, 255, 0.2);
+	color: var(--accent);
+	border: 1px solid rgba(106, 165, 255, 0.3);
+}
+
+.btn-small:hover {
+	background: rgba(106, 165, 255, 0.3);
+}
+
+.ec-card .row {
+	gap: 20px;
+}
+
+.ec-card .toggle {
+	margin-top: 0;
+}
