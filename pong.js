@@ -78,6 +78,10 @@ let keysPressed = {
 // Debug mode (press D to toggle)
 let debugMode = false;
 
+// Transmission queue to prevent overlapping sends
+let isSending = false;
+let sendQueue = [];
+
 // ==================== Quiet.js Integration ====================
 
 function setStatus(text, tone = 'info') {
@@ -141,7 +145,10 @@ function createTransmitter() {
     
     transmitter = Quiet.transmitter({
         profile: currentProfile,
-        onFinish: () => {}
+        onFinish: () => {
+            isSending = false;
+            processQueue();
+        }
     });
 }
 
@@ -184,16 +191,40 @@ function stopReceiver() {
     btnListen.textContent = '🎤 Listen';
 }
 
-function sendPacket(data) {
+function sendPacket(data, priority = false) {
     if (!isReady || !transmitter) return;
     
     const payload = JSON.stringify(data);
     const framed = `${START}${payload}${END}`;
-    transmitter.transmit(Quiet.str2ab(framed));
     
-    txCount++;
-    if (debugMode) {
-        debugTx.textContent = txCount;
+    if (priority) {
+        // High priority: add to front of queue
+        sendQueue.unshift(framed);
+    } else {
+        // Normal: add to back, but limit queue size to avoid buildup
+        if (sendQueue.length < 3) {
+            sendQueue.push(framed);
+        }
+    }
+    
+    processQueue();
+}
+
+function processQueue() {
+    if (isSending || sendQueue.length === 0 || !transmitter) return;
+    
+    isSending = true;
+    const framed = sendQueue.shift();
+    
+    try {
+        transmitter.transmit(Quiet.str2ab(framed));
+        txCount++;
+        if (debugMode) {
+            debugTx.textContent = txCount;
+        }
+    } catch (e) {
+        console.warn('Transmit error:', e);
+        isSending = false;
     }
 }
 
@@ -392,18 +423,20 @@ function joinGame() {
     setSyncStatus('syncing');
     
     // Send join request periodically until acknowledged
-    const joinInterval = setInterval(() => {
+    let joinInterval = setInterval(() => {
         if (gameState.gameStarted) {
             clearInterval(joinInterval);
+            joinInterval = null;
+            // Only start input timer once connected
+            if (!inputTimer) {
+                inputTimer = setInterval(() => {
+                    sendInput();
+                }, INPUT_SEND_INTERVAL);
+            }
             return;
         }
         sendPacket({ type: 'join', ts: Date.now() });
-    }, 500);
-    
-    // Start input timer
-    inputTimer = setInterval(() => {
-        sendInput();
-    }, INPUT_SEND_INTERVAL);
+    }, 1000); // Slower join requests to avoid overwhelming transmitter
 }
 
 function toggleListen() {
