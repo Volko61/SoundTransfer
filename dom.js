@@ -1,0 +1,16 @@
+export const btnSend = document.getElementById("send");
+export const btnListen = document.getElementById("listen");
+export const btnSendFile = document.getElementById("sendFile");
+export const msgInput = document.getElementById("msgtosend");
+export const fileInput = document.getElementById("fileInput");
+export const fileInfo = document.getElementById("fileInfo");
+export const profileSelect = document.getElementById("profileSelect");
+export const vizSelect = document.getElementById("vizSelect");
+export const statusEl = document.getElementById("status");
+export const receivedList = document.getElementById("receivedList");
+export const waveformCanvas = document.getElementById("waveform");
+export const waveformCtx = waveformCanvas.getContext("2d");
+export const profileHint = document.getElementById("profileHint");
+export const sendProgress = document.getElementById("sendProgress");
+export const progressInfo = document.getElementById("progressInfo");
+export const pixelDrawToggle = document.getElementById("pixelDraw");
