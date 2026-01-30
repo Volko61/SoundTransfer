@@ -2,19 +2,9 @@
 const START = "\u0002";
 const END = "\u0003";
 
-// DOM Elements
-const statusEl = document.getElementById("status");
-const profileSelect = document.getElementById("profileSelect");
-const playerSelect = document.getElementById("playerSelect");
-const hostBtn = document.getElementById("hostGame");
-const joinBtn = document.getElementById("joinGame");
-const stopBtn = document.getElementById("stopGame");
-const canvas = document.getElementById("pongCanvas");
-const ctx = canvas.getContext("2d");
-const gameMessage = document.getElementById("gameMessage");
-const score1El = document.getElementById("score1");
-const score2El = document.getElementById("score2");
-const connectionLog = document.getElementById("connectionLog");
+// DOM Elements - initialized after DOM loads
+let statusEl, profileSelect, playerSelect, hostBtn, joinBtn, stopBtn;
+let canvas, ctx, gameMessage, score1El, score2El, connectionLog;
 
 // Game State
 const state = {
@@ -422,6 +412,8 @@ function updateGame() {
 }
 
 function drawGame() {
+    if (!ctx) return; // Safety check
+    
     // Clear
     ctx.fillStyle = "#0a0e16";
     ctx.fillRect(0, 0, game.width, game.height);
@@ -469,21 +461,22 @@ function drawGame() {
     }
 }
 
-function roundRect(ctx, x, y, width, height, radius) {
-    ctx.beginPath();
-    ctx.moveTo(x + radius, y);
-    ctx.lineTo(x + width - radius, y);
-    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-    ctx.lineTo(x + width, y + height - radius);
-    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-    ctx.lineTo(x + radius, y + height);
-    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-    ctx.lineTo(x, y + radius);
-    ctx.quadraticCurveTo(x, y, x + radius, y);
-    ctx.closePath();
+function roundRect(context, x, y, width, height, radius) {
+    context.beginPath();
+    context.moveTo(x + radius, y);
+    context.lineTo(x + width - radius, y);
+    context.quadraticCurveTo(x + width, y, x + width, y + radius);
+    context.lineTo(x + width, y + height - radius);
+    context.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    context.lineTo(x + radius, y + height);
+    context.quadraticCurveTo(x, y + height, x, y + height - radius);
+    context.lineTo(x, y + radius);
+    context.quadraticCurveTo(x, y, x + radius, y);
+    context.closePath();
 }
 
 function gameLoop() {
+    if (!ctx) return; // Safety check
     updateGame();
     drawGame();
     requestAnimationFrame(gameLoop);
@@ -591,30 +584,53 @@ document.addEventListener("keyup", (e) => {
     game.keys[e.key] = false;
 });
 
-// Event Listeners
-profileSelect.addEventListener("change", () => {
-    state.currentProfile = profileSelect.value;
-    createTransmitter();
-    if (state.receiverActive) {
-        resetReceiver();
-        ensureReceiver();
-    }
-    log(`Profile changed to ${state.currentProfile}`, "info");
-});
-
-playerSelect.addEventListener("change", () => {
-    state.myPlayer = parseInt(playerSelect.value);
-});
-
-hostBtn.addEventListener("click", hostGame);
-joinBtn.addEventListener("click", joinGame);
-stopBtn.addEventListener("click", stopGame);
-
 // Initialize
-hostBtn.disabled = true;
-joinBtn.disabled = true;
+function init() {
+    // Get DOM elements
+    statusEl = document.getElementById("status");
+    profileSelect = document.getElementById("profileSelect");
+    playerSelect = document.getElementById("playerSelect");
+    hostBtn = document.getElementById("hostGame");
+    joinBtn = document.getElementById("joinGame");
+    stopBtn = document.getElementById("stopGame");
+    canvas = document.getElementById("pongCanvas");
+    ctx = canvas.getContext("2d");
+    gameMessage = document.getElementById("gameMessage");
+    score1El = document.getElementById("score1");
+    score2El = document.getElementById("score2");
+    connectionLog = document.getElementById("connectionLog");
 
-loadProfiles();
-waitForQuiet();
-gameLoop();
-drawGame();
+    // Setup event listeners
+    profileSelect.addEventListener("change", () => {
+        state.currentProfile = profileSelect.value;
+        createTransmitter();
+        if (state.receiverActive) {
+            resetReceiver();
+            ensureReceiver();
+        }
+        log(`Profile changed to ${state.currentProfile}`, "info");
+    });
+
+    playerSelect.addEventListener("change", () => {
+        state.myPlayer = parseInt(playerSelect.value);
+    });
+
+    hostBtn.addEventListener("click", hostGame);
+    joinBtn.addEventListener("click", joinGame);
+    stopBtn.addEventListener("click", stopGame);
+
+    hostBtn.disabled = true;
+    joinBtn.disabled = true;
+
+    loadProfiles();
+    waitForQuiet();
+    gameLoop();
+    drawGame();
+}
+
+// Wait for DOM to be ready
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+} else {
+    init();
+}
