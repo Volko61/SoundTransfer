@@ -60,7 +60,9 @@ export function renderMessage(msg) {
         }
 
         const meta = document.createElement("div");
-        meta.className = "file-info";
+        meta.style.fontSize = "12px";
+        meta.style.color = "#999";
+        meta.style.marginTop = "8px";
         const sizeText = `${formatBytes(msg.size || blob.size)}${msg.originalSize ? ` (original ${formatBytes(msg.originalSize)})` : ""}`;
         meta.textContent = `${msg.name || "file"} • ${msg.mime || blob.type} • ${sizeText}`;
         wrapper.appendChild(meta);
@@ -73,6 +75,7 @@ export function renderMessage(msg) {
 export function appendMessage(title, contentNode) {
     const item = document.createElement("div");
     item.className = "message";
+    
     const heading = document.createElement("h3");
     heading.textContent = title;
     item.appendChild(heading);

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="1.css" />
+    <script type="module" src="1.js"></script>
+
+    <title>Sound Transfer</title>
+  </head>
+  <body></body>
+</html>
+
+<div>
+  <h3>---------- TEXT ---------</h3>
+  <div class="block">
+    <div class="emitting-block">
+      <h4>EMITTING SECTION</h4>
+      <input type="text" id="textEmit" />
+      <button id="textEmitBtn">Emit</button>
+    </div>
+
+    <div class="receiving-block">
+      <h4>RECEIVING SECTION</h4>
+      <input type="text" id="textReceive" disabled />
+      <button id="textListenBtn">Listen</button>
+      <button id="textCalibrateBtn">Calibrate</button>
+      <p id="currentValue">currentValue</p>
+    </div>
+  </div>
+</div>
+
+<div id="waveform">
+</div>

@@ -9,7 +9,7 @@ let sendQueue = Promise.resolve();
 
 export function initQuiet() {
     setUiReady(false);
-    setStatus("Initializing…");
+    setStatus("Starting…");
 
     Quiet.init({
         profilesPrefix: "./",
@@ -19,12 +19,11 @@ export function initQuiet() {
             state.isReady = true;
             createTransmitter();
             setUiReady(true);
-            setStatus("Ready", "ok");
         },
         onError: (reason) => {
             console.error("Quiet init failed:", reason);
             setUiReady(false);
-            setStatus("Init failed", "error");
+            setStatus("Couldn’t start", "error");
         }
     });
 }
@@ -37,7 +36,7 @@ export function waitForQuiet(remaining = 50) {
     if (remaining <= 0) {
         console.error("Quiet.js did not load.");
         setUiReady(false);
-        setStatus("Quiet.js failed to load", "error");
+        setStatus("Audio engine didn’t load", "error");
         return;
     }
     window.setTimeout(() => waitForQuiet(remaining - 1), 100);
@@ -78,11 +77,11 @@ export function ensureReceiver() {
             handleIncomingPayload(payload);
         },
         onCreate: () => {
-            setStatus("Listening…", "ok");
+            setStatus("Listening", "ok");
         },
         onCreateFail: (reason) => {
             console.error("Receiver create failed:", reason);
-            setStatus("Mic access failed", "error");
+            setStatus("Microphone blocked", "error");
         },
         onReceiveFail: (totalFails) => {
             console.warn("Receiver checksum fails:", totalFails);
@@ -134,10 +133,10 @@ function handleIncomingPayload(payload) {
             const msg = JSON.parse(jsonStr);
 
             renderMessage(msg);
-            setStatus("Received", "ok");
+            setStatus("Got it", "ok");
         } catch (err) {
             console.warn("Failed to parse message:", err);
-            setStatus("Parse error - corrupted data", "error");
+            setStatus("Couldn’t read the data", "error");
         }
 
         startIdx = state.rxBuffer.indexOf(START);

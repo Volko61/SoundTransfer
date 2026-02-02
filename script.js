@@ -26,7 +26,7 @@ btnSend.addEventListener("click", () => {
     const envelope = { type: "text", text };
 
     sendEnvelope(envelope);
-    setStatus("Text queued", "ok");
+    setStatus("Message sent", "ok");
     msgInput.value = "";
 });
 
@@ -34,24 +34,24 @@ btnSendFile.addEventListener("click", async () => {
     if (!state.isReady || !state.transmitter) return;
     const file = fileInput.files?.[0];
     if (!file) {
-        setStatus("Choose a file first", "error");
+        setStatus("Pick a file first", "error");
         return;
     }
 
     try {
         if (file.type.startsWith("image/") && pixelDrawToggle.checked) {
-            setStatus("Preparing pixel stream…");
+            setStatus("Preparing image…");
             const envelopes = await prepareImageStreamEnvelopes(file);
             // Send all envelopes at once without waiting between each
             for (const envelope of envelopes) {
                 sendEnvelope(envelope);
             }
-            setStatus("Pixel stream queued", "ok");
+            setStatus("Image sent", "ok");
         } else {
-            setStatus("Compressing file…");
+            setStatus("Compressing…");
             const envelope = await prepareFileEnvelope(file);
             sendEnvelope(envelope);
-            setStatus("File queued", "ok");
+            setStatus("File sent", "ok");
         }
     } catch (err) {
         console.error(err);
@@ -72,7 +72,7 @@ btnListen.addEventListener("click", () => {
     resetReceiver();
     stopVisualizer();
     btnListen.textContent = "Listen";
-    setStatus("Listening stopped", "info");
+    setStatus("Listening off", "info");
 });
 
 profileSelect.addEventListener("change", () => {
@@ -85,7 +85,6 @@ profileSelect.addEventListener("change", () => {
         btnListen.textContent = "Stop Listening";
     }
     updateProfileHint();
-    setStatus(`Profile set to ${state.currentProfile}`, "ok");
 });
 
 vizSelect.addEventListener("change", () => {

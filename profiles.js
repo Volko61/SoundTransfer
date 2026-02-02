@@ -33,10 +33,8 @@ const PROFILE_DESCRIPTIONS = {
 };
 
 export function updateProfileHint() {
-    const desc = PROFILE_DESCRIPTIONS[state.currentProfile] || "Pick a profile based on audibility vs reliability.";
-    const profile = state.profileMeta[state.currentProfile];
-    const details = profile ? describeProfileDetailed(profile) : "";
-    profileHint.textContent = `${state.currentProfile}: ${desc}${details ? ` • ${details}` : ""}`;
+    const bps = getProfileBps(state.currentProfile);
+    profileHint.textContent = `~${bps} B/s`;
 }
 
 export async function loadProfiles() {

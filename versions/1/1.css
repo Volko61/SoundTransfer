@@ -1,0 +1,23 @@
+.block {
+  border: 1px solid #000;
+  display: flex;
+  justify-content: space-between;
+  margin: 4px;
+  padding: 4px;
+}
+
+.emitting-block,
+.receiving-block {
+  flex-grow: 1;
+}
+
+.emitting-block > input,
+.receiving-block > input {
+  width: 80%;
+}
+
+#waveform {
+    width: 500px;
+    height: 100px;
+    display: flex;
+}

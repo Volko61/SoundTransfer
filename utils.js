@@ -1,10 +1,9 @@
 import { btnSend, btnListen, btnSendFile, profileSelect, vizSelect, fileInput, statusEl } from "./dom.js";
 
 export function setStatus(text, tone = "info") {
+    if (!statusEl) return;
     statusEl.textContent = text;
-    statusEl.classList.remove("ok", "error");
-    if (tone === "ok") statusEl.classList.add("ok");
-    if (tone === "error") statusEl.classList.add("error");
+    // No badge classes needed, just text in the new design
 }
 
 export function setUiReady(ready) {

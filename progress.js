@@ -34,10 +34,7 @@ function updateProgressDisplay() {
     const elapsedStr = formatTime(elapsed);
     const remainingStr = remaining > 0 ? formatTime(remaining) : "finishing...";
 
-    progressInfo.innerHTML = `
-        <span class="data-info">${dataSize} @ ~${progressState.bps} B/s</span>
-        <span class="time-left">${elapsedStr} / ~${formatTime(progressState.estimatedMs)} (${remainingStr} left)</span>
-    `;
+    progressInfo.innerHTML = `${dataSize} @ ${progressState.bps} B/s • ${elapsedStr} elapsed, ~${remainingStr} remaining`;
 }
 
 export function startProgress(length) {
@@ -89,10 +86,7 @@ export function finishProgress() {
     if (progressState) {
         const elapsed = Date.now() - progressState.startTime;
         const actualBps = Math.round(progressState.length / (elapsed / 1000));
-        progressInfo.innerHTML = `
-            <span class="data-info">Sent ${formatBytes(progressState.length)}</span>
-            <span class="time-left">Completed in ${formatTime(elapsed)} (${actualBps} B/s)</span>
-        `;
+        progressInfo.innerHTML = `✓ Sent ${formatBytes(progressState.length)} in ${formatTime(elapsed)} (${actualBps} B/s)`;
         progressState = null;
     }
 
