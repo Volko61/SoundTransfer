@@ -1,160 +1,246 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      body { 
-        font-family: Arial, sans-serif; 
-        background: #f5f5f5;
-        color: #333;
-        line-height: 1.6;
-        padding: 20px;
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      color: #333;
+      line-height: 1.6;
+      padding: 20px;
+    }
+
+    .container {
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 28px;
+      margin-bottom: 5px;
+    }
+
+    h2 {
+      font-size: 18px;
+      margin-bottom: 10px;
+      border-bottom: 2px solid #ddd;
+      padding-bottom: 5px;
+    }
+
+    h3 {
+      font-size: 16px;
+      margin-bottom: 8px;
+    }
+
+    p {
+      margin-bottom: 10px;
+      font-size: 14px;
+      color: #666;
+    }
+
+    .header {
+      padding: 0 0 20px 0;
+      margin-bottom: 30px;
+      border-bottom: 2px solid #ddd;
+    }
+
+    .status {
+      float: right;
+      background: #e3f2fd;
+      padding: 5px 10px;
+      border-radius: 3px;
+      font-size: 13px;
+    }
+
+    .section {
+      padding: 20px 0;
+      margin-bottom: 20px;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .section:last-child {
+      border-bottom: none;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    input[type="text"],
+    input[type="file"],
+    select {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 10px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+    }
+
+    button {
+      background: #2196F3;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+
+    button:hover {
+      background: #1976D2;
+    }
+
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: #f0f0f0;
+      margin: 10px 0;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: #2196F3;
+      width: 0%;
+      transition: width 0.3s;
+    }
+
+    .progress-info {
+      font-size: 12px;
+      color: #666;
+      margin-top: 5px;
+    }
+
+    .hint {
+      font-size: 12px;
+      color: #999;
+      font-style: italic;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100px;
+      background: #fafafa;
+      border: 1px dashed #ddd;
+      display: block;
+      margin-top: 10px;
+    }
+
+    .message {
+      background: #fafafa;
+      padding: 15px;
+      margin-bottom: 10px;
+      border-left: 3px solid #2196F3;
+    }
+
+    .message h3 {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 8px;
+    }
+
+    .message img,
+    .message video {
+      max-width: 100%;
+      margin-top: 10px;
+    }
+
+    .message audio {
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    .row {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+
+    .row>div {
+      flex: 1;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+    }
+
+    @media (max-width: 768px) {
+      .row {
+        flex-direction: column;
       }
-      .container {  margin: 0 auto; }
-      h1 { font-size: 28px; margin-bottom: 5px; }
-      h2 { font-size: 18px; margin-bottom: 10px; border-bottom: 2px solid #ddd; padding-bottom: 5px; }
-      h3 { font-size: 16px; margin-bottom: 8px; }
-      p { margin-bottom: 10px; font-size: 14px; color: #666; }
-      
-      .header { 
-        padding: 0 0 20px 0; 
-        margin-bottom: 30px; 
-        border-bottom: 2px solid #ddd;
-      }
-      .status { 
-        float: right; 
-        background: #e3f2fd; 
-        padding: 5px 10px; 
-        border-radius: 3px; 
-        font-size: 13px;
-      }
-      
-      .section { 
-        padding: 20px 0; 
-        margin-bottom: 20px; 
-        border-bottom: 1px solid #e0e0e0;
-      }
-      .section:last-child { border-bottom: none; }
-      
-      label { 
-        display: block; 
-        margin-bottom: 5px; 
-        font-weight: bold; 
-        font-size: 14px;
-      }
-      
-      input[type="text"], 
-      input[type="file"], 
-      select { 
-        width: 100%; 
-        padding: 8px; 
-        margin-bottom: 10px; 
-        border: 1px solid #ccc; 
-        font-size: 14px;
-      }
-      
-      button { 
-        background: #2196F3; 
-        color: white; 
-        padding: 10px 20px; 
-        border: none; 
-        cursor: pointer; 
-        font-size: 14px;
-        margin-top: 10px;
-      }
-      button:hover { background: #1976D2; }
-      button:disabled { background: #ccc; cursor: not-allowed; }
-      
-      .progress-bar { 
-        width: 100%; 
-        height: 8px; 
-        background: #f0f0f0; 
-        margin: 10px 0;
-      }
-      .progress-fill { 
-        height: 100%; 
-        background: #2196F3; 
-        width: 0%; 
-        transition: width 0.3s;
-      }
-      
-      .progress-info { 
-        font-size: 12px; 
-        color: #666; 
-        margin-top: 5px;
-      }
-      
-      .hint { 
-        font-size: 12px; 
-        color: #999; 
-        font-style: italic;
-      }
-      
-      canvas { 
-        width: 100%; 
-        height: 100px; 
-        background: #fafafa; 
-        border: 1px dashed #ddd; 
+
+      .status {
+        float: none;
         display: block;
         margin-top: 10px;
       }
-      
-      .message { 
-        background: #fafafa; 
-        padding: 15px; 
-        margin-bottom: 10px; 
-        border-left: 3px solid #2196F3;
-      }
-      .message h3 { 
-        font-size: 14px; 
-        color: #666; 
-        margin-bottom: 8px;
-      }
-      
-      .message img,
-      .message video { 
-        max-width: 100%; 
-        margin-top: 10px;
-      }
-      
-      .message audio { width: 100%; margin-top: 10px; }
-      
-      .row { 
-        display: flex; 
-        gap: 15px; 
-        margin-bottom: 15px;
-      }
-      .row > div { flex: 1; }
-      
-      .grid { 
-        display: grid; 
-        grid-template-columns: 1fr 1fr; 
-        gap: 15px; 
-      }
-      
-      @media (max-width: 768px) {
-        .row { flex-direction: column; }
-        .status { float: none; display: block; margin-top: 10px; }
-        .grid { grid-template-columns: 1fr; }
-      }
-    </style>
 
-    <script type="text/javascript" src="./quiet.js"></script>
-    <script type="module" src="script.js"></script>
-    <script async type="text/javascript" src="./quiet-emscripten.js"></script>
-    <title>SoundTransfer</title>
-  </head>
-  <body>
-    <div class="container">
-      <!-- <div class="header"> -->
-        <h1>SoundTransfer</h1>
-        <p>Send messages and files over sound waves</p>
-      <!-- </div> -->
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
 
-      <div class="section">
-        <h2>Setup</h2>
+  <script type="text/javascript" src="./quiet.js"></script>
+  <script type="module" src="script.js"></script>
+  <script type="module" src="versions/1/1.js"></script>
+  <script async type="text/javascript" src="./quiet-emscripten.js"></script>
+  <title>SoundTransfer</title>
+</head>
+
+<body>
+  <div class="container">
+    <!-- <div class="header"> -->
+    <h1>SoundTransfer</h1>
+    <p>Send messages and files over sound waves</p>
+    <!-- </div> -->
+
+
+    <div class="section">
+      <h2>TEXT</h2>
+      <div class="row">
+        <div>
+          <label>Emitting Section</label>
+          <div style="width: 100%;display: flex;">
+            <input type="text" id="textEmit" style="flex-grow: 1;margin-right: 4px;"></input>
+            <button id="textEmitBtn" style="height: 100%; margin-top: 0;">Emit</button>
+          </div>
+        </div>
+        <div>
+          <label>Receiving Section</label>
+          <div style="width: 100%;display: flex;">
+            <input type="text" id="textReceive" disabled style="flex-grow: 1;margin-right: 4px;"></input>
+            <button id="textListenBtn" style="height: 100%; margin-top: 0; margin-right: 4px;">Listen</button>
+            <button  id="textCalibrateBtn" style="height: 100%; margin-top: 0;">Calibrate</button>
+          </div>
+        </div>
+      </div>
+      <div >
+        <canvas id="waveform-text" width="800" height="200" aria-hidden="true"></canvas>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>IMAGE</h2>
+
+      <div>
         <div class="row">
           <div>
             <label for="profileSelect">Profile</label>
@@ -168,28 +254,19 @@
               <option value="spectrogram">Spectrogram</option>
             </select>
           </div>
+          <button id="listen">Listen</button>
         </div>
-        <button id="listen">Listen</button>
-        <div id="vizWrapper">
-          <canvas id="waveform" width="800" height="200" aria-hidden="true"></canvas>
+        <div style="display: flex; justify-content: space-between; gap: 8px;">
+          <div id="vizWrapper" style="flex-grow: 1; margin-right: 4px;">
+            <canvas id="waveform" width="800" height="200" aria-hidden="true"></canvas>
+            <div class="progress-bar">
+              <div id="sendProgress" class="progress-fill"></div>
+            </div>
+            <div id="progressInfo" class="progress-info"></div>
         </div>
-      </div>
-
-      <div class="grid">
-        <div class="section">
-          <h2>Send Message</h2>
-          <label for="msgtosend">Type your message</label>
-          <input id="msgtosend" type="text" placeholder="Write a message" />
-          <button id="send">Send</button>
-          <div class="progress-bar">
-            <div id="sendProgress" class="progress-fill"></div>
-          </div>
-          <div id="progressInfo" class="progress-info"></div>
-        </div>
-
-        <div class="section">
-          <h2>Send File</h2>
-          <label for="fileInput">Choose a file</label>
+        <div class="section" style="flex-grow: 1;">
+          <h2>Send Image</h2>
+          <label for="fileInput">Choose an image</label>
           <input id="fileInput" type="file" />
           <div>
             <label>
@@ -198,14 +275,17 @@
             </label>
           </div>
           <div id="fileInfo" class="hint"></div>
-          <button id="sendFile">Send File</button>
+          <button id="sendFile">Send Image</button>
         </div>
       </div>
-
-      <div class="section">
-        <h2>Received</h2>
-        <div id="receivedList"></div>
-      </div>
     </div>
-  </body>
+
+    <div class="section">
+      <h2>Received</h2>
+      <div id="receivedList"></div>
+    </div>
+  </div>
+  </div>
+</body>
+
 </html>

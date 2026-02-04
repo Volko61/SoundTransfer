@@ -19,16 +19,16 @@ fileInput.addEventListener("change", () => {
     fileInfo.textContent = `${file.name} • ${file.type || "unknown"} • ${formatBytes(file.size)}`;
 });
 
-btnSend.addEventListener("click", () => {
-    if (!state.isReady || !state.transmitter) return;
-    const text = msgInput.value.trim();
-    if (!text) return;
-    const envelope = { type: "text", text };
+// btnSend.addEventListener("click", () => {
+//     if (!state.isReady || !state.transmitter) return;
+//     const text = msgInput.value.trim();
+//     if (!text) return;
+//     const envelope = { type: "text", text };
 
-    sendEnvelope(envelope);
-    setStatus("Message sent", "ok");
-    msgInput.value = "";
-});
+//     sendEnvelope(envelope);
+//     setStatus("Message sent", "ok");
+//     msgInput.value = "";
+// });
 
 btnSendFile.addEventListener("click", async () => {
     if (!state.isReady || !state.transmitter) return;

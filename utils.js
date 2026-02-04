@@ -7,7 +7,7 @@ export function setStatus(text, tone = "info") {
 }
 
 export function setUiReady(ready) {
-    btnSend.disabled = !ready;
+    // btnSend.disabled = !ready;
     btnListen.disabled = !ready;
     btnSendFile.disabled = !ready;
     profileSelect.disabled = !ready;

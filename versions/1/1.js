@@ -5,7 +5,7 @@ const textCalibrateBtn = document.getElementById("textCalibrateBtn");
 
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 const analyserNode = audioCtx.createAnalyser();
-analyserNode.fftSize = 2048; 
+analyserNode.fftSize = 2048;
 const bufferLength = analyserNode.frequencyBinCount;
 const dataArray = new Float32Array(bufferLength);
 
@@ -19,8 +19,9 @@ const FREQ_END = 4500;
 const TONE_DURATION = 0.3;
 const THRESHOLD_OFFSET = 20;
 
-const canvas = document.createElement("canvas");
-document.body.appendChild(canvas);
+// const canvas = document.createElement("canvas");
+// document.body.appendChild(canvas);
+const canvas = document.getElementById("waveform-text");
 const canvasCtx = canvas.getContext("2d");
 canvas.width = window.innerWidth;
 canvas.height = 200;
@@ -29,7 +30,23 @@ let isListening = false;
 let receivedBits = "";
 let receptionCooldown = 0;
 
-navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+// navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+//     const source = audioCtx.createMediaStreamSource(stream);
+//     source.connect(analyserNode);
+//     processAudio();
+// });
+
+navigator.mediaDevices.getUserMedia({
+    audio: {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false,
+    }
+}).then(async (stream) => {
+    // Ensure context is running (some browsers require this after stream access)
+    if (audioCtx.state === 'suspended') {
+        await audioCtx.resume();
+    }
     const source = audioCtx.createMediaStreamSource(stream);
     source.connect(analyserNode);
     processAudio();
@@ -82,29 +99,29 @@ function generateSound(type, startTime) {
 
     osc.connect(gain);
     gain.connect(audioCtx.destination);
-    
+
     gain.gain.setValueAtTime(0, startTime);
     gain.gain.linearRampToValueAtTime(1, startTime + 0.01);
     gain.gain.setValueAtTime(1, startTime + TONE_DURATION - 0.01);
     gain.gain.linearRampToValueAtTime(0, startTime + TONE_DURATION);
-    
+
     osc.start(startTime);
     osc.stop(startTime + TONE_DURATION);
-    return TONE_DURATION + 0.05; 
+    return TONE_DURATION + 0.05;
 }
 
 textEmitBtn.addEventListener("click", async () => {
     if (audioCtx.state === 'suspended') await audioCtx.resume();
-    
+
     let input = textEmit.value;
     let sequence = ["START"];
-    
+
     for (let i = 0; i < input.length; i++) {
         let bin = input[i].charCodeAt(0).toString(2).padStart(8, '0');
-        for(let bit of bin) sequence.push(bit);
+        for (let bit of bin) sequence.push(bit);
     }
     sequence.push("END");
-    
+
     let timeOffset = audioCtx.currentTime + 0.5;
     for (let item of sequence) {
         timeOffset += generateSound(item, timeOffset);
@@ -136,7 +153,7 @@ function processAudio() {
     const mag1 = getFrequencyMagnitude(FREQ_1);
     const magStart = getFrequencyMagnitude(FREQ_START);
     const magEnd = getFrequencyMagnitude(FREQ_END);
-    
+
     const maxMag = Math.max(mag0, mag1, magStart, magEnd);
 
     if (maxMag > THRESHOLD_OFFSET) {
@@ -176,14 +193,14 @@ function drawVisuals() {
         let val = dataArray[i];
         let floor = calibrationBuffer[i];
         if (floor === -Infinity) floor = -140;
-        
+
         const adjustedValue = Math.max(0, val - floor);
-        const barHeight = adjustedValue * 5; 
+        const barHeight = adjustedValue * 5;
 
         canvasCtx.fillStyle = isCalibrating ? "yellow" : "red";
-        
+
         const freq = i * audioCtx.sampleRate / analyserNode.fftSize;
-        if (Math.abs(freq - FREQ_0) < 50 || Math.abs(freq - FREQ_1) < 50 || 
+        if (Math.abs(freq - FREQ_0) < 50 || Math.abs(freq - FREQ_1) < 50 ||
             Math.abs(freq - FREQ_START) < 50 || Math.abs(freq - FREQ_END) < 50) {
             canvasCtx.fillStyle = "lime";
         }
