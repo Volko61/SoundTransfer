@@ -1,0 +1,191 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  background: #f5f5f5;
+  color: #333;
+  line-height: 1.6;
+  padding: 20px;
+}
+
+.container {
+  margin: 0 auto;
+}
+
+h1 {
+  font-size: 28px;
+  margin-bottom: 5px;
+}
+
+h2 {
+  font-size: 18px;
+  margin-bottom: 10px;
+  border-bottom: 2px solid #ddd;
+  padding-bottom: 5px;
+}
+
+h3 {
+  font-size: 16px;
+  margin-bottom: 8px;
+}
+
+p {
+  margin-bottom: 10px;
+  font-size: 14px;
+  color: #666;
+}
+
+.header {
+  padding: 0 0 20px 0;
+  margin-bottom: 30px;
+  border-bottom: 2px solid #ddd;
+}
+
+.status {
+  float: right;
+  background: #e3f2fd;
+  padding: 5px 10px;
+  border-radius: 3px;
+  font-size: 13px;
+}
+
+.section {
+  padding: 20px 0;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.section:last-child {
+  border-bottom: none;
+}
+
+label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+input[type="text"],
+input[type="file"],
+select {
+  width: 100%;
+  padding: 8px;
+  margin-bottom: 10px;
+  border: 1px solid #ccc;
+  font-size: 14px;
+}
+
+button {
+  background: #2196f3;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  margin-top: 10px;
+}
+
+button:hover {
+  background: #1976d2;
+}
+
+button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: #f0f0f0;
+  margin: 10px 0;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #2196f3;
+  width: 0%;
+  transition: width 0.3s;
+}
+
+.progress-info {
+  font-size: 12px;
+  color: #666;
+  margin-top: 5px;
+}
+
+.hint {
+  font-size: 12px;
+  color: #999;
+  font-style: italic;
+}
+
+canvas {
+  width: 100%;
+  height: 100px;
+  background: #fafafa;
+  border: 1px dashed #ddd;
+  display: block;
+  margin-top: 10px;
+}
+
+.message {
+  background: #fafafa;
+  padding: 15px;
+  margin-bottom: 10px;
+  border-left: 3px solid #2196f3;
+}
+
+.message h3 {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.message img,
+.message video {
+  max-width: 100%;
+  margin-top: 10px;
+}
+
+.message audio {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.row {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.row > div {
+  flex: 1;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+
+@media (max-width: 768px) {
+  .row {
+    flex-direction: column;
+  }
+
+  .status {
+    float: none;
+    display: block;
+    margin-top: 10px;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
