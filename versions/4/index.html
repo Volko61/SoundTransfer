@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="../2/style.css" />
+
+  <script type="text/javascript" src="../2/quiet.js"></script>
+  <script type="module" src="../2/2.js"></script>
+  <script type="module" src="../1/1.js"></script>
+  <script type="text/javascript" src="dsp.js"></script>
+  <script type="module" src="../3/3.js"></script>
+  <script type="module" src="4.js"></script>
+  <script async type="text/javascript" src="../2/quiet-emscripten.js"></script>
+  <title>SoundTransfer</title>
+</head>
+
+<body>
+  <div class="container">
+    <!-- <div class="header"> -->
+    <h1>SoundTransfer</h1>
+    <p>Send messages and files over sound waves</p>
+    <!-- </div> -->
+
+
+    <div class="section">
+      <h2>TEXT</h2>
+      <div class="row">
+        <div>
+          <label>Emitting Section</label>
+          <div style="width: 100%;display: flex;">
+            <input type="text" id="textEmit" style="flex-grow: 1;margin-right: 4px;"></input>
+            <button id="textEmitBtn" style="height: 100%; margin-top: 0;">Emit</button>
+          </div>
+        </div>
+        <div>
+          <label>Receiving Section</label>
+          <div style="width: 100%;display: flex;">
+            <input type="text" id="textReceive" disabled style="flex-grow: 1;margin-right: 4px;"></input>
+            <button id="textListenBtn" style="height: 100%; margin-top: 0; margin-right: 4px;">Listen</button>
+            <button id="textCalibrateBtn" style="height: 100%; margin-top: 0;">Calibrate</button>
+          </div>
+        </div>
+      </div>
+      <div>
+        <canvas id="waveform-text" width="800" height="200" aria-hidden="true"></canvas>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>PDF</h2>
+
+      <div>
+        <div class="row">
+          <div>
+            <label for="profileSelect">Profile</label>
+            <select id="profileSelect"></select>
+            <p id="profileHint" class="hint"></p>
+          </div>
+          <div>
+            <label for="vizSelect">Visualization</label>
+            <select id="vizSelect">
+              <option value="waveform">Waveform</option>
+              <option value="spectrogram">Spectrogram</option>
+            </select>
+          </div>
+          <button id="listen">Listen</button>
+        </div>
+        <div style="display: flex; justify-content: space-between; gap: 8px;">
+          <div id="vizWrapper" style="flex-grow: 1; margin-right: 4px;">
+            <canvas id="waveform" width="800" height="200" aria-hidden="true"></canvas>
+            <div class="progress-bar">
+              <div id="sendProgress" class="progress-fill"></div>
+            </div>
+            <div id="progressInfo" class="progress-info"></div>
+          </div>
+          <div class="section" style="flex-grow: 1;">
+            <h2>Send PDF</h2>
+            <label for="fileInput">Choose a pdf</label>
+            <input id="fileInput" type="file" />
+            <!-- <div>
+            <label>
+              <input id="pixelDraw" type="checkbox" />
+              Show images pixel-by-pixel
+            </label>
+          </div> -->
+            <div id="fileInfo" class="hint"></div>
+            <button id="sendFile">Send PDF</button>
+          </div>
+        </div>
+
+        <h3>Received</h3>
+        <div id="receivedList"></div>
+      </div>
+
+    </div>
+    <div class="section">
+      <h2>IMAGE (SSTV)</h2>
+
+      <div class="row">
+        <div>
+          <label>Emitting Section</label>
+          <button disabled id="imgEmitBtn">Emit</button>
+          <input id="imgEmitInput" type="file" accept="image/*" name="imgImagePicker">
+        </div>
+        <div>
+          <label>Receiving Section</label>
+          <button id="imgListenBtn">Listen</button>
+          <span id="imgStatus" style="margin-left: 8px; color: #888;"></span>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Preview (Send)</label>
+          <canvas style="height: auto; max-width: 320px; border: 1px solid #444;" id="imgCanvasPreview" width="320"
+            height="240"></canvas>
+        </div>
+        <div>
+          <label>Received Image</label>
+          <canvas style="height: auto; max-width: 320px; border: 1px solid #444;" id="imgCanvasReceive" width="320"
+            height="240"></canvas>
+        </div>
+      </div>
+      <div class="row">
+        <div style="width: 100%;">
+          <label>Spectrum Analyzer (1000-3000 Hz)</label>
+          <canvas style="width: 100%; height: 100px; border: 1px solid #444; background: #000;" id="imgSpectrum"
+            width="800" height="100"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>VIDEO (SSTV)</h2>
+
+      <div class="row">
+        <div>
+          <label>Video Source</label>
+          <input id="vidInput" type="file" accept="video/*">
+        </div>
+        <div>
+          <label>Target FPS</label>
+          <input id="vidFpsInput" type="number" value="2" min="0.5" max="10" step="0.5" style="width: 80px;">
+        </div>
+        <div style="display: flex; gap: 8px; align-items: flex-end;">
+          <button disabled id="vidEmitBtn">Transmit</button>
+          <button disabled id="vidStopBtn">Stop</button>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <span id="vidStatus" style="color: #888;">Select a video file</span>
+        </div>
+        <div>
+          <span id="vidFrameCounter" style="color: #4a9eff;">Frame 0/0</span>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top: 12px;">
+        <div>
+          <label>Preview (Source)</label>
+          <canvas style="max-width: 160px; border: 1px solid #444; background: #000;" id="vidPreviewCanvas" width="160"
+            height="120"></canvas>
+        </div>
+        <div>
+          <label>Current Frame (Line-by-Line Encoding)</label>
+          <canvas style="max-width: 160px; border: 1px solid #444; background: #000;" id="vidCurrentFrame" width="160"
+            height="120"></canvas>
+          <div class="progress-bar" style="width: 160px; margin-top: 4px;">
+            <div id="vidLineProgress" class="progress-fill" style="width: 0%;"></div>
+          </div>
+        </div>
+        <div>
+          <label>Result (Transmitted Frames)</label>
+          <canvas style="max-width: 160px; border: 1px solid #444; background: #000;" id="vidResultCanvas" width="160"
+            height="120"></canvas>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top: 12px;">
+        <div style="flex-grow: 1; border-top: 1px solid #444; padding-top: 12px; margin-top: 12px;">
+          <h3>Receiver</h3>
+          <div class="row">
+            <div>
+              <button id="vidListenBtn">Receive</button>
+              <span id="vidReceiveStatus" style="margin-left: 8px; color: #888;">Standby</span>
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label>Live Decoding</label>
+              <canvas style="max-width: 160px; border: 1px solid #444; background: #000;" id="vidReceiveCanvas"
+                width="160" height="120"></canvas>
+            </div>
+            <div>
+              <label>Received Loop</label>
+              <canvas style="max-width: 160px; border: 1px solid #444; background: #000;" id="vidReceivedResultCanvas"
+                width="160" height="120"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+</body>
+
+</html>
