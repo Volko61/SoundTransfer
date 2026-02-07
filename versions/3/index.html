@@ -9,7 +9,6 @@
   <script type="text/javascript" src="../2/quiet.js"></script>
   <script type="module" src="../2/2.js"></script>
   <script type="module" src="../1/1.js"></script>
-  <script type="text/javascript" src="dsp.js"></script>
   <script type="module" src="3.js"></script>
   <script async type="text/javascript" src="../2/quiet-emscripten.js"></script>
   <title>SoundTransfer</title>
@@ -100,28 +99,32 @@
       <div class="row">
         <div>
           <label>Emitting Section</label>
-          <button id="imgCalibrateBtn">Calibrate</button>
           <button disabled id="imgEmitBtn">Emit</button>
           <input id="imgEmitInput" type="file" accept="image/*" name="imgImagePicker">
         </div>
         <div>
           <label>Receiving Section</label>
           <button id="imgListenBtn">Listen</button>
-          <button id="imgStopListenBtn" disabled>Stop</button>
-          <span id="imgListenStatus" style="margin-left: 8px; color: #888;">Idle</span>
+          <span id="imgStatus" style="margin-left: 8px; color: #888;"></span>
         </div>
-      </div>
-      <div>
-        <canvas id="waveform-img" width="800" height="200" aria-hidden="true"></canvas>
       </div>
       <div class="row">
         <div>
           <label>Preview (Send)</label>
-          <canvas style="height: auto; max-width: 320px; border: 1px solid #444;" id="imgCanvasPreview" width="320" height="240"></canvas>
+          <canvas style="height: auto; max-width: 320px; border: 1px solid #444;" id="imgCanvasPreview" width="320"
+            height="240"></canvas>
         </div>
         <div>
           <label>Received Image</label>
-          <canvas style="height: auto; max-width: 320px; border: 1px solid #444;" id="imgCanvasReceived" width="320" height="240"></canvas>
+          <canvas style="height: auto; max-width: 320px; border: 1px solid #444;" id="imgCanvasReceive" width="320"
+            height="240"></canvas>
+        </div>
+      </div>
+      <div class="row">
+        <div style="width: 100%;">
+          <label>Spectrum Analyzer (1000-3000 Hz)</label>
+          <canvas style="width: 100%; height: 100px; border: 1px solid #444; background: #000;" id="imgSpectrum"
+            width="800" height="100"></canvas>
         </div>
       </div>
     </div>

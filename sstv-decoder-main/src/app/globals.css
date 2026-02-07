@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* GitHub Dark Theme Colors */
+  --background: #0d1117;
+  --foreground: #c9d1d9;
+  --border: #30363d;
+  --primary: #238636;
+  --primary-hover: #2ea043;
+  --secondary: #1f6feb;
+  --danger: #da3633;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+}

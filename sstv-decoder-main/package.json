@@ -1,0 +1,74 @@
+{
+  "name": "sstv-decoder",
+  "version": "0.1.0",
+  "description": "Free web-based SSTV decoder for amateur radio. Decode Robot36, Robot72, Scottie, and PD mode signals in real-time from your browser. Perfect for ham radio, ISS SSTV events, and satellite image reception.",
+  "keywords": [
+    "sstv",
+    "sstv-decoder",
+    "slow-scan-television",
+    "amateur-radio",
+    "ham-radio",
+    "robot36",
+    "robot72",
+    "scottie",
+    "pd120",
+    "iss-sstv",
+    "web-audio",
+    "fm-demodulation",
+    "dsp",
+    "pwa",
+    "offline-first",
+    "radio-decoder",
+    "satellite-images"
+  ],
+  "author": {
+    "name": "smolgroot",
+    "url": "https://github.com/smolgroot"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/smolgroot/sstv-decoder.git"
+  },
+  "homepage": "https://sstv-decoder.vercel.app",
+  "bugs": {
+    "url": "https://github.com/smolgroot/sstv-decoder/issues"
+  },
+  "license": "0BSD",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/icons-material": "^7.3.5",
+    "@mui/material": "^7.3.5",
+    "next": "^15.0.0",
+    "next-pwa": "^5.6.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^8",
+    "eslint-config-next": "^15.0.0",
+    "jest": "^30.2.0",
+    "jest-environment-jsdom": "^30.2.0",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5"
+  }
+}
