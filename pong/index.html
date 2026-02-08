@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="audio-sync.js"></script>
+    <script src="pong.js"></script>
+    <title>Sound Transfer - Pong</title>
+</head>
+
+<body></body>
+
+</html>
+
+<div>
+    <h3>---------- MULTIPLAYER PONG (Audio Sync) ---------</h3>
+    <div class="block">
+        <div class="emitting-block">
+            <h4>PLAYER CONTROLS</h4>
+            <button id="hostBtn">Host Game</button>
+            <button id="joinBtn">Join Game</button>
+            <button id="stopBtn" disabled>Stop</button>
+        </div>
+
+        <div class="receiving-block">
+            <h4>STATUS</h4>
+            <div>Connection: <span id="connectionStatus">Not connected</span></div>
+            <div>Role: <span id="roleStatus">-</span></div>
+            <div>Packets: <span id="packetStatus">TX: 0 / RX: 0</span></div>
+        </div>
+    </div>
+</div>
+
+<div>
+    <h4>SCORE: <span id="score1">0</span> - <span id="score2">0</span></h4>
+    <canvas id="gameCanvas" width="600" height="400" style="border: 1px solid #000;"></canvas>
+</div>
+
+<div>
+    <canvas id="visualizerCanvas" width="300" height="60" style="border: 1px solid #ccc;"></canvas>
+</div>
+
+<div class="block">
+    <div>
+        <h4>HOW TO PLAY</h4>
+        <ul>
+            <li><b>Host:</b> Click "Host Game" to start a new game</li>
+            <li><b>Join:</b> Click "Join Game" to connect</li>
+            <li><b>Controls:</b> Move mouse up/down or use ↑/↓ arrow keys</li>
+            <li><b>Tip:</b> Open in two browser tabs for multiplayer!</li>
+        </ul>
+    </div>
+</div>

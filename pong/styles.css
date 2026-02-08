@@ -1,0 +1,47 @@
+.block {
+    border: 1px solid #000;
+    display: flex;
+    justify-content: space-between;
+    margin: 4px;
+    padding: 4px;
+}
+
+.emitting-block,
+.receiving-block {
+    flex-grow: 1;
+}
+
+.emitting-block>input,
+.receiving-block>input {
+    width: 80%;
+}
+
+#gameCanvas {
+    display: block;
+    margin: 4px;
+    background: #000;
+}
+
+#visualizerCanvas {
+    margin: 4px;
+    background: #f0f0f0;
+}
+
+button {
+    margin: 2px;
+    padding: 4px 8px;
+}
+
+h3,
+h4 {
+    margin: 8px 4px;
+}
+
+ul {
+    margin: 4px;
+    padding-left: 20px;
+}
+
+li {
+    margin: 2px 0;
+}
